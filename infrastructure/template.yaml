@@ -52,7 +52,7 @@ Resources:
   ProductsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub '${AWS::StackName}'-product-table
+      TableName: !Sub '${AWS::StackName}-product-table'
       AttributeDefinitions:
         - AttributeName: PK
           AttributeType: S
