@@ -91,6 +91,7 @@ jobs:
             CognitoUserPoolId=dummy-user-pool-id \
             CognitoClientId=dummy-client-id \
             FrontendUrl=https://www.usarakhi.com \
+            OpenAIAPIKey=sk-sample-openai-key-for-testing \
           --capabilities CAPABILITY_IAM \
           --resolve-s3 \
           --no-fail-on-empty-changeset
