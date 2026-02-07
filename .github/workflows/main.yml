@@ -86,9 +86,9 @@ jobs:
           --stack-name usarakhi-${{ github.ref_name }} \
           --parameter-overrides \
             Stage=${{ github.ref_name }} \
-            StripeSecretKey=${{ secrets.STRIPE_SECRET_KEY }} \
-            CognitoUserPoolId=${{ secrets.COGNITO_USER_POOL_ID }} \
-            CognitoClientId=${{ secrets.COGNITO_CLIENT_ID }} \
+            StripeSecretKey=dummy-stripe-key \
+            CognitoUserPoolId=dummy-user-pool-id \
+            CognitoClientId=dummy-client-id \
             FrontendUrl=https://www.usarakhi.com \
           --capabilities CAPABILITY_IAM \
           --no-fail-on-empty-changeset
