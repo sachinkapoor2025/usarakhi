@@ -96,20 +96,11 @@ jobs:
           --resolve-s3 \
           --no-fail-on-empty-changeset
 
-    - name: Get API URL
-      id: api-url
-      run: |
-        API_URL=$(aws cloudformation describe-stacks \
-          --stack-name usarakhi-${{ github.ref_name }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
-          --output text)
-        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-
     - name: Build frontend
       run: |
         cd frontend
         npm install --no-audit --no-fund
-        NEXT_PUBLIC_API_URL=${{ steps.api-url.outputs.api_url }} npm run build
+        npm run build
         npm run export
 
     - name: Configure AWS credentials for S3
