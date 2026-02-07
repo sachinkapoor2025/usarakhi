@@ -1,0 +1,211 @@
+service: usarakhi-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    DYNAMODB_TABLE: ${self:service}-${self:provider.stage}
+    STRIPE_SECRET_KEY: ${env:STRIPE_SECRET_KEY}
+    COGNITO_USER_POOL_ID: ${env:COGNITO_USER_POOL_ID}
+    COGNITO_CLIENT_ID: ${env:COGNITO_CLIENT_ID}
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource: 
+            - "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.DYNAMODB_TABLE}"
+            - "arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.DYNAMODB_TABLE}/index/*"
+
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin
+
+functions:
+  # Product Management
+  getProducts:
+    handler: functions/products.getProducts
+    events:
+      - http:
+          path: products
+          method: get
+          cors: true
+
+  getProduct:
+    handler: functions/products.getProduct
+    events:
+      - http:
+          path: products/{id}
+          method: get
+          cors: true
+
+  createProduct:
+    handler: functions/products.createProduct
+    events:
+      - http:
+          path: admin/products
+          method: post
+          cors: true
+          authorizer: aws_iam
+
+  updateProduct:
+    handler: functions/products.updateProduct
+    events:
+      - http:
+          path: admin/products/{id}
+          method: put
+          cors: true
+          authorizer: aws_iam
+
+  deleteProduct:
+    handler: functions/products.deleteProduct
+    events:
+      - http:
+          path: admin/products/{id}
+          method: delete
+          cors: true
+          authorizer: aws_iam
+
+  # Cart Management
+  getCart:
+    handler: functions/cart.getCart
+    events:
+      - http:
+          path: cart
+          method: get
+          cors: true
+          authorizer: aws_iam
+
+  addToCart:
+    handler: functions/cart.addToCart
+    events:
+      - http:
+          path: cart
+          method: post
+          cors: true
+          authorizer: aws_iam
+
+  updateCart:
+    handler: functions/cart.updateCart
+    events:
+      - http:
+          path: cart/{itemId}
+          method: put
+          cors: true
+          authorizer: aws_iam
+
+  removeFromCart:
+    handler: functions/cart.removeFromCart
+    events:
+      - http:
+          path: cart/{itemId}
+          method: delete
+          cors: true
+          authorizer: aws_iam
+
+  # Checkout
+  createCheckoutSession:
+    handler: functions/checkout.createCheckoutSession
+    events:
+      - http:
+          path: checkout
+          method: post
+          cors: true
+          authorizer: aws_iam
+
+  # Orders
+  getOrders:
+    handler: functions/orders.getOrders
+    events:
+      - http:
+          path: orders
+          method: get
+          cors: true
+          authorizer: aws_iam
+
+  getOrder:
+    handler: functions/orders.getOrder
+    events:
+      - http:
+          path: orders/{id}
+          method: get
+          cors: true
+          authorizer: aws_iam
+
+  # Admin Orders
+  getAdminOrders:
+    handler: functions/orders.getAdminOrders
+    events:
+      - http:
+          path: admin/orders
+          method: get
+          cors: true
+          authorizer: aws_iam
+
+  updateOrderStatus:
+    handler: functions/orders.updateOrderStatus
+    events:
+      - http:
+          path: admin/orders/{id}
+          method: put
+          cors: true
+          authorizer: aws_iam
+
+resources:
+  Resources:
+    ProductsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+
+    # IAM Policy for Cognito access
+    CognitoPolicy:
+      Type: AWS::IAM::Policy
+      Properties:
+        PolicyName: CognitoAccessPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminGetUser
+                - cognito-idp:AdminUpdateUserAttributes
+                - cognito-idp:AdminDeleteUser
+              Resource: !Sub 'arn:aws:cognito-idp:${aws:region}:${aws:accountId}:userpool/${self:provider.environment.COGNITO_USER_POOL_ID}'
+        Roles:
+          - !Ref IamRoleLambdaExecution
