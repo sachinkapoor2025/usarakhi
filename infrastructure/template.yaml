@@ -1,0 +1,671 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  Usa Rakhi E-commerce Backend - Serverless API for Rakhi store in USA
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    Description: Deployment stage (dev, prod)
+  
+  StripeSecretKey:
+    Type: String
+    NoEcho: true
+    Description: Stripe secret key for payment processing
+  
+  CognitoUserPoolId:
+    Type: String
+    Description: Cognito User Pool ID for authentication
+  
+  CognitoClientId:
+    Type: String
+    Description: Cognito App Client ID for authentication
+  
+  FrontendUrl:
+    Type: String
+    Default: 'https://www.usarakhi.com'
+    Description: Frontend application URL for CORS and redirects
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 30
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Sub '${AWS::StackName}-${Stage}'
+        STRIPE_SECRET_KEY: !Ref StripeSecretKey
+        COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+        COGNITO_CLIENT_ID: !Ref CognitoClientId
+        FRONTEND_URL: !Ref FrontendUrl
+    Tracing: Active
+
+Resources:
+  # DynamoDB Table
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AWS::StackName}-${Stage}'
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          title: !Sub '${AWS::StackName} API'
+        paths:
+          /products:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetProducts.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /products/{id}:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetProduct.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /admin/products:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateProduct.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /admin/products/{id}:
+            put:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UpdateProduct.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteProduct.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /cart:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetCart.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AddToCart.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /cart/{itemId}:
+            put:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UpdateCart.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+            delete:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RemoveFromCart.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /checkout:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CreateCheckoutSession.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /orders:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetOrders.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /orders/{id}:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetOrder.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /admin/orders:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${GetAdminOrders.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+          /admin/orders/{id}:
+            put:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UpdateOrderStatus.Arn}/invocations'
+              responses: {}
+              security:
+                - CognitoAuthorizer: []
+
+  # Lambda Functions
+  GetProducts:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/products.getProducts
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /products
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  GetProduct:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/products.getProduct
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /products/{id}
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  CreateProduct:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/products.createProduct
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/products
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  UpdateProduct:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/products.updateProduct
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/products/{id}
+            Method: put
+            RestApiId: !Ref ApiGateway
+
+  DeleteProduct:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/products.deleteProduct
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/products/{id}
+            Method: delete
+            RestApiId: !Ref ApiGateway
+
+  GetCart:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/cart.getCart
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /cart
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  AddToCart:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/cart.addToCart
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /cart
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  UpdateCart:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/cart.updateCart
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /cart/{itemId}
+            Method: put
+            RestApiId: !Ref ApiGateway
+
+  RemoveFromCart:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/cart.removeFromCart
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /cart/{itemId}
+            Method: delete
+            RestApiId: !Ref ApiGateway
+
+  CreateCheckoutSession:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/checkout.createCheckoutSession
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - stripe:*
+              Resource: "*"
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /checkout
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  GetOrders:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/orders.getOrders
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /orders
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  GetOrder:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/orders.getOrder
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /orders/{id}
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  GetAdminOrders:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/orders.getAdminOrders
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/orders
+            Method: get
+            RestApiId: !Ref ApiGateway
+
+  UpdateOrderStatus:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/orders.updateOrderStatus
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/orders/{id}
+            Method: put
+            RestApiId: !Ref ApiGateway
+
+  # AI Content Generation Functions
+  GenerateProductDescription:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/ai-content.generateProductDescription
+      Environment:
+        Variables:
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/ai/product-description
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  GenerateBlogContent:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/ai-content.generateBlogContent
+      Environment:
+        Variables:
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
+      Policies:
+        - DynamoDBWritePolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/ai/blog-content
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  AnalyzeSentiment:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/ai-content.analyzeSentiment
+      Environment:
+        Variables:
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/ai/sentiment
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  GenerateMetaTags:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/ai-content.generateMetaTags
+      Environment:
+        Variables:
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /admin/ai/meta-tags
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  GenerateRecommendations:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend/
+      Handler: functions/ai-content.generateRecommendations
+      Environment:
+        Variables:
+          OPENAI_API_KEY: !Ref OpenAIAPIKey
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProductsTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /ai/recommendations
+            Method: post
+            RestApiId: !Ref ApiGateway
+
+  # IAM Role for Cognito Access
+  CognitoAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CognitoAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:AdminDeleteUser
+                Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${CognitoUserPoolId}'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
+
+  # CloudWatch Log Groups
+  GetProductsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetProducts}'
+      RetentionInDays: 7
+
+  GetProductLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetProduct}'
+      RetentionInDays: 7
+
+  CreateProductLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${CreateProduct}'
+      RetentionInDays: 7
+
+  UpdateProductLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${UpdateProduct}'
+      RetentionInDays: 7
+
+  DeleteProductLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${DeleteProduct}'
+      RetentionInDays: 7
+
+  GetCartLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetCart}'
+      RetentionInDays: 7
+
+  AddToCartLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AddToCart}'
+      RetentionInDays: 7
+
+  UpdateCartLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${UpdateCart}'
+      RetentionInDays: 7
+
+  RemoveFromCartLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${RemoveFromCart}'
+      RetentionInDays: 7
+
+  CreateCheckoutSessionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${CreateCheckoutSession}'
+      RetentionInDays: 7
+
+  GetOrdersLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetOrders}'
+      RetentionInDays: 7
+
+  GetOrderLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetOrder}'
+      RetentionInDays: 7
+
+  GetAdminOrdersLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${GetAdminOrders}'
+      RetentionInDays: 7
+
+  UpdateOrderStatusLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${UpdateOrderStatus}'
+      RetentionInDays: 7
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/'
+  
+  DynamoDBTableName:
+    Description: Name of the DynamoDB table
+    Value: !Ref ProductsTable
+  
+  Stage:
+    Description: Deployment stage
+    Value: !Ref Stage
