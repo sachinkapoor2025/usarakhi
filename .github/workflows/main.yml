@@ -27,7 +27,7 @@ jobs:
     - name: Install frontend dependencies
       run: |
         cd frontend
-        npm ci
+        npm install --no-audit --no-fund
 
     - name: Run frontend tests
       run: |
@@ -81,7 +81,7 @@ jobs:
     - name: Build backend
       run: |
         cd backend
-        npm install
+        npm install --no-audit --no-fund
         npm run build
 
     - name: Deploy backend infrastructure
@@ -111,7 +111,7 @@ jobs:
     - name: Build frontend
       run: |
         cd frontend
-        npm install
+        npm install --no-audit --no-fund
         NEXT_PUBLIC_API_URL=${{ steps.api-url.outputs.api_url }} npm run build
         npm run export
 
@@ -217,7 +217,7 @@ jobs:
     - name: Run Lighthouse CI
       run: |
         cd frontend
-        npm install
+        npm install --no-audit --no-fund
         npm run build
         lhci autorun
       env:
