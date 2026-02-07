@@ -82,8 +82,9 @@ jobs:
       run: |
         cd infrastructure
         sam build --template template.yaml
+        STACK_NAME="usarakhi-$(echo ${{ github.ref_name }} | tr '/' '-')"
         sam deploy \
-          --stack-name usarakhi-${{ github.ref_name }} \
+          --stack-name $STACK_NAME \
           --parameter-overrides \
             Stage=${{ github.ref_name }} \
             StripeSecretKey=dummy-stripe-key \
