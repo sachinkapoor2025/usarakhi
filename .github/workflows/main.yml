@@ -82,10 +82,11 @@ jobs:
       run: |
         cd infrastructure
         sam build --template template.yaml
+        STAGE_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
         sam deploy \
-          --stack-name usa-rakhi-dev \
+          --stack-name usa-rakhi-dev-1 \
           --parameter-overrides \
-            Stage=${{ github.ref_name }} \
+            Stage=$STAGE_NAME \
             StripeSecretKey=dummy-stripe-key \
             CognitoUserPoolId=dummy-user-pool-id \
             CognitoClientId=dummy-client-id \
