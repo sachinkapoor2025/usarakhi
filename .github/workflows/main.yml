@@ -83,7 +83,7 @@ jobs:
         cd infrastructure
         sam build --template template.yaml
         sam deploy \
-          --stack-name usarakhi-dev \
+          --stack-name usarakhi-dev1 \
           --parameter-overrides \
             Stage=${{ github.ref_name }} \
             StripeSecretKey=dummy-stripe-key \
