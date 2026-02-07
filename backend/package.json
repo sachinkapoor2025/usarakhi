@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest",
     "lint": "eslint .",
-    "build": "tsc"
+    "build": "echo 'No TypeScript files to compile - skipping build'"
   },
   "dependencies": {
     "aws-sdk": "^2.1490.0",
