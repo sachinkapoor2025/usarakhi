@@ -1,0 +1,224 @@
+name: Deploy Usa Rakhi
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AWS_REGION: us-east-1
+  SAM_CLI_TELEMETRY: 0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --watchAll=false
+
+    - name: Run frontend linting
+      run: |
+        cd frontend
+        npm run lint
+
+    - name: Install backend dependencies
+      run: |
+        cd backend
+        npm ci
+
+    - name: Run backend tests
+      run: |
+        cd backend
+        npm test
+
+    - name: Run backend linting
+      run: |
+        cd backend
+        npm run lint
+
+  build-and-deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Install AWS SAM CLI
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y awscli
+        curl -Lo sam-installation.zip https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip
+        unzip sam-installation.zip -d sam-installation
+        sudo ./sam-installation/install
+
+    - name: Build backend
+      run: |
+        cd backend
+        npm install
+        npm run build
+
+    - name: Deploy backend infrastructure
+      run: |
+        cd infrastructure
+        sam build --template template.yaml
+        sam deploy \
+          --stack-name usarakhi-${{ github.ref_name }} \
+          --parameter-overrides \
+            Stage=${{ github.ref_name }} \
+            StripeSecretKey=${{ secrets.STRIPE_SECRET_KEY }} \
+            CognitoUserPoolId=${{ secrets.COGNITO_USER_POOL_ID }} \
+            CognitoClientId=${{ secrets.COGNITO_CLIENT_ID }} \
+            FrontendUrl=https://www.usarakhi.com \
+          --capabilities CAPABILITY_IAM \
+          --no-fail-on-empty-changeset
+
+    - name: Get API URL
+      id: api-url
+      run: |
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name usarakhi-${{ github.ref_name }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+          --output text)
+        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm install
+        NEXT_PUBLIC_API_URL=${{ steps.api-url.outputs.api_url }} npm run build
+        npm run export
+
+    - name: Configure AWS credentials for S3
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Create S3 bucket for frontend (if not exists)
+      run: |
+        BUCKET_NAME="usarakhi-frontend-${{ github.ref_name }}"
+        aws s3 mb s3://$BUCKET_NAME --region ${{ env.AWS_REGION }} || true
+
+    - name: Deploy frontend to S3
+      run: |
+        BUCKET_NAME="usarakhi-frontend-${{ github.ref_name }}"
+        aws s3 sync frontend/out/ s3://$BUCKET_NAME/ --delete
+
+    - name: Invalidate CloudFront cache
+      run: |
+        # Get CloudFront distribution ID
+        DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+          --query "DistributionList.Items[?Origins.Items[0].DomainName=='usarakhi-frontend-${{ github.ref_name }}.s3.amazonaws.com'].Id" \
+          --output text)
+        
+        if [ ! -z "$DISTRIBUTION_ID" ]; then
+          aws cloudfront create-invalidation \
+            --distribution-id $DISTRIBUTION_ID \
+            --paths "/*"
+        fi
+
+    - name: Notify deployment
+      run: |
+        echo "✅ Backend deployed successfully!"
+        echo "API URL: ${{ steps.api-url.outputs.api_url }}"
+        echo "Frontend bucket: usarakhi-frontend-${{ github.ref_name }}"
+
+  deploy-staging:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    steps:
+    - name: Notify staging deployment
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+
+  deploy-production:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Notify production deployment
+      run: |
+        echo "🚀 Deploying to production environment..."
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  performance-test:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Lighthouse CI
+      run: npm install -g @lhci/cli@0.12.x
+
+    - name: Run Lighthouse CI
+      run: |
+        cd frontend
+        npm install
+        npm run build
+        lhci autorun
+      env:
+        LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
