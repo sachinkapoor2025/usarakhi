@@ -2,9 +2,9 @@ name: Deploy Usa Rakhi
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 'feature/*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop, 'feature/*' ]
 
 env:
   AWS_REGION: us-east-1
@@ -160,6 +160,18 @@ jobs:
     - name: Notify staging deployment
       run: |
         echo "🚀 Deploying to staging environment..."
+        echo "Branch: ${{ github.ref }}"
+        echo "Commit: ${{ github.sha }}"
+
+  deploy-feature:
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    
+    steps:
+    - name: Notify feature deployment
+      run: |
+        echo "🚀 Deploying to feature environment..."
         echo "Branch: ${{ github.ref }}"
         echo "Commit: ${{ github.sha }}"
 
