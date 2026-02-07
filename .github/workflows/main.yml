@@ -99,7 +99,7 @@ jobs:
     - name: Build frontend
       run: |
         cd frontend
-        npm install --no-audit --no-fund
+        npm ci --no-audit --no-fund
         npm run build
         npm run export
 
