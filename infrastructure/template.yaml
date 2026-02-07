@@ -40,7 +40,7 @@ Globals:
     Timeout: 30
     Environment:
       Variables:
-        DYNAMODB_TABLE: !Sub '${AWS::StackName}-${Stage}'
+        DYNAMODB_TABLE: !Sub '${AWS::StackName}'
         STRIPE_SECRET_KEY: !Ref StripeSecretKey
         COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
         COGNITO_CLIENT_ID: !Ref CognitoClientId
