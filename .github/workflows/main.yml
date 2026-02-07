@@ -56,7 +56,7 @@ jobs:
 
   build-and-deploy:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fature/*'
     
     steps:
     - name: Checkout code
