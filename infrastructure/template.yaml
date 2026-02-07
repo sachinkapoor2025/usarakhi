@@ -27,6 +27,12 @@ Parameters:
     Type: String
     Default: 'https://www.usarakhi.com'
     Description: Frontend application URL for CORS and redirects
+  
+  OpenAIAPIKey:
+    Type: String
+    NoEcho: true
+    Default: 'sk-sample-openai-key-for-testing'
+    Description: OpenAI API key for AI content generation
 
 Globals:
   Function:
