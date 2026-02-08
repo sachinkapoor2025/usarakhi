@@ -78,29 +78,29 @@
           npm install --no-audit --no-fund
           npm run build
 
-      - name: Deploy backend infrastructure
-        run: |
-          cd infrastructure
-          sam build --template template.yaml
-          STAGE_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
-          sam deploy \
-            --stack-name usa-rakhi-dev-1 \
-            --parameter-overrides \
-              Stage=$STAGE_NAME \
-              StripeSecretKey=dummy-stripe-key \
-              CognitoUserPoolId=dummy-user-pool-id \
-              CognitoClientId=dummy-client-id \
-              FrontendUrl=https://www.usarakhi.com \
-              OpenAIAPIKey=sk-sample-openai-key-for-testing \
-            --capabilities CAPABILITY_IAM \
-            --resolve-s3 \
-            --no-fail-on-empty-changeset
+      # - name: Deploy backend infrastructure
+      #   run: |
+      #     cd infrastructure
+      #     sam build --template template.yaml
+      #     STAGE_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
+      #     sam deploy \
+      #       --stack-name usa-rakhi-dev-1 \
+      #       --parameter-overrides \
+      #         Stage=$STAGE_NAME \
+      #         StripeSecretKey=dummy-stripe-key \
+      #         CognitoUserPoolId=dummy-user-pool-id \
+      #         CognitoClientId=dummy-client-id \
+      #         FrontendUrl=https://www.usarakhi.com \
+      #         OpenAIAPIKey=sk-sample-openai-key-for-testing \
+      #       --capabilities CAPABILITY_IAM \
+      #       --resolve-s3 \
+      #       --no-fail-on-empty-changeset
 
-      - name: Build frontend
-        run: |
-          cd frontend
-          npm install --no-audit --no-fund
-          npm run build
+      # - name: Build frontend
+      #   run: |
+      #     cd frontend
+      #     npm install --no-audit --no-fund
+      #     npm run build
 
       - name: Deploy frontend infrastructure to AWS
         run: |
