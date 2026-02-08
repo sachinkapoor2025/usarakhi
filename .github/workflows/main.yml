@@ -109,7 +109,7 @@
           rm -rf $TEMP_DIR
           mkdir -p $TEMP_DIR
           
-          # Copy frontend build files
+          # Copy only essential frontend build files (exclude node_modules)
           cp -r frontend/.next $TEMP_DIR/
           cp -r frontend/public $TEMP_DIR/ 2>/dev/null || true
           cp frontend/package.json $TEMP_DIR/
@@ -144,25 +144,31 @@
           };
           EOF
 
-          # Create package.json for Lambda
+          # Create minimal package.json for Lambda
           cat > $TEMP_DIR/package.json << 'EOF'
           {
             "name": "usarakhi-frontend-lambda",
             "version": "1.0.0",
             "dependencies": {
               "next": "^14.0.0",
-              "aws-serverless-express": "^3.3.9",
-              "aws-lambda": "^1.0.6"
+              "aws-serverless-express": "^3.3.9"
             }
           }
           EOF
 
-          # Install Lambda dependencies
+          # Install only production dependencies with minimal size
           cd $TEMP_DIR
-          npm install --production --no-audit --no-fund
+          npm install --production --no-audit --no-fund --no-optional
           
-          # Create deployment zip
-          zip -r ../frontend-server.zip . -x "node_modules/aws-sdk/*"
+          # Remove unnecessary files to reduce package size
+          rm -rf node_modules/aws-sdk
+          find node_modules -name "*.test.js" -delete
+          find node_modules -name "*.spec.js" -delete
+          find node_modules -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
+          find node_modules -name "__tests__" -type d -exec rm -rf {} + 2>/dev/null || true
+          
+          # Create deployment zip with compression
+          zip -r -9 ../frontend-server.zip . -x "node_modules/aws-sdk/*"
           
           cd ..
           rm -rf $TEMP_DIR
