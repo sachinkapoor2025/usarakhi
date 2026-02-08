@@ -214,7 +214,7 @@ Resources:
           OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # AllViewer
           FunctionAssociations:
             - EventType: viewer-request
-              FunctionARN: !GetAtt CloudFrontFunction.Arn
+              FunctionARN: !GetAtt CloudFrontFunction.FunctionMetadata.FunctionARN
         CacheBehaviors:
           - PathPattern: '_next/static/*'
             TargetOriginId: StaticAssetsOrigin
