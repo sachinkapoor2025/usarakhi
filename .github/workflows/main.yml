@@ -104,39 +104,47 @@ jobs:
 
     - name: Deploy frontend infrastructure to AWS
       run: |
+        # Clean branch name for stack name (remove invalid characters)
+        CLEAN_BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g')
+        
         # Deploy frontend CloudFormation stack
         aws cloudformation create-stack \
-          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
           --template-body file://infrastructure/frontend-template.yaml \
           --parameters \
-            ParameterKey=Stage,ParameterValue=${{ github.ref_name }} \
+            ParameterKey=Stage,ParameterValue=${CLEAN_BRANCH_NAME} \
             ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
           --capabilities CAPABILITY_IAM \
           --region ${{ env.AWS_REGION }} \
           || aws cloudformation update-stack \
-          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
           --template-body file://infrastructure/frontend-template.yaml \
           --parameters \
-            ParameterKey=Stage,ParameterValue=${{ github.ref_name }} \
+            ParameterKey=Stage,ParameterValue=${CLEAN_BRANCH_NAME} \
             ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
           --capabilities CAPABILITY_IAM \
-          --region ${{ env.AWS_REGION }} \
-          --no-fail-on-empty-changeset
+          --region ${{ env.AWS_REGION }}
 
     - name: Wait for frontend stack deployment
       run: |
+        # Clean branch name for stack name (remove invalid characters)
+        CLEAN_BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g')
+        
         aws cloudformation wait stack-create-complete \
-          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
           --region ${{ env.AWS_REGION }} \
           || aws cloudformation wait stack-update-complete \
-          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
           --region ${{ env.AWS_REGION }}
 
     - name: Get frontend stack outputs
       id: frontend-outputs
       run: |
+        # Clean branch name for stack name (remove invalid characters)
+        CLEAN_BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g')
+        
         STACK_OUTPUTS=$(aws cloudformation describe-stacks \
-          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
           --region ${{ env.AWS_REGION }} \
           --query 'Stacks[0].Outputs' --output json)
         
