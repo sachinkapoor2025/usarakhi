@@ -282,16 +282,6 @@
             return request;
           }
 
-    # S3 Deployment Bucket (for deployment artifacts)
-    FrontendDeploymentBucket:
-      Type: AWS::S3::Bucket
-      Properties:
-        BucketName: !Sub 'usarakhi-frontend-deployment-${Stage}'
-        PublicAccessBlockConfiguration:
-          BlockPublicAcls: true
-          BlockPublicPolicy: true
-          IgnorePublicAcls: true
-          RestrictPublicBuckets: true
 
     # Lambda Permission for API Gateway
     LambdaApiGatewayPermission:
