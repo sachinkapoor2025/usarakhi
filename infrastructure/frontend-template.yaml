@@ -291,27 +291,27 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${FrontendApiGateway}/*/*'
 
-  # Outputs
-  Outputs:
-    FrontendUrl:
-      Description: 'Frontend URL'
-      Value: !Sub 'https://${FrontendCloudFrontDistribution.DomainName}'
-    
-    ApiGatewayUrl:
-      Description: 'API Gateway URL for frontend'
-      Value: !Sub 'https://${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}'
-    
-    NextJsLambdaFunction:
-      Description: 'Next.js Lambda Function ARN'
-      Value: !GetAtt NextJsServerFunction.Arn
-    
-    FrontendAssetsBucket:
-      Description: 'S3 Bucket for static assets'
-      Value: !Ref FrontendAssetsBucket
-    
-    CloudFrontDistributionId:
-      Description: 'CloudFront Distribution ID'
-      Value: !Ref FrontendCloudFrontDistribution
+# Outputs
+Outputs:
+  FrontendUrl:
+    Description: 'Frontend URL'
+    Value: !Sub 'https://${FrontendCloudFrontDistribution.DomainName}'
+  
+  ApiGatewayUrl:
+    Description: 'API Gateway URL for frontend'
+    Value: !Sub 'https://${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}'
+  
+  NextJsLambdaFunction:
+    Description: 'Next.js Lambda Function ARN'
+    Value: !GetAtt NextJsServerFunction.Arn
+  
+  FrontendAssetsBucket:
+    Description: 'S3 Bucket for static assets'
+    Value: !Ref FrontendAssetsBucket
+  
+  CloudFrontDistributionId:
+    Description: 'CloudFront Distribution ID'
+    Value: !Ref FrontendCloudFrontDistribution
 
 Conditions:
-  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
+HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
