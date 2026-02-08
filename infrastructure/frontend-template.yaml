@@ -258,7 +258,7 @@ Resources:
       FunctionConfig:
         Comment: Rewrite URLs for Next.js routing
         Runtime: cloudfront-js-2.0
-        Code: |
+        FunctionCode: |
           function handler(event) {
             var request = event.request;
             var uri = request.uri;
