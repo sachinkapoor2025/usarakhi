@@ -9,8 +9,8 @@ import { Toaster } from '@/components/ui/toaster'
 Amplify.configure({
   Auth: {
     Cognito: {
-      userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID || '',
-      userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || '',
+      userPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID || 'us-east-1_3l64ld774pbq2u3sj2cikvhrp2',
+      userPoolClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID || '3l64ld774pbq2u3sj2cikvhrp2',
     }
   },
 })
