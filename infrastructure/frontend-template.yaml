@@ -52,7 +52,7 @@
         FunctionName: !Sub 'usarakhi-frontend-${Stage}'
         PackageType: Image
         Code:
-          ImageUri: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendECRRepository}:latest'
+          ImageUri: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/usarakhi-frontend-dev:latest'
         MemorySize: 2048
         Timeout: 30
         Environment:

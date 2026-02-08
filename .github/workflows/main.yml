@@ -105,13 +105,13 @@
       - name: Create ECR repository
         id: create-ecr
         run: |
-          aws ecr-public create-repository \
+          aws ecr create-repository \
             --repository-name usarakhi-frontend-dev \
             --region us-east-1 \
             || echo "Repository already exists"
           
           # Get the ECR registry URL
-          ECR_REGISTRY=$(aws ecr-public describe-repositories \
+          ECR_REGISTRY=$(aws ecr describe-repositories \
             --repository-names usarakhi-frontend-dev \
             --query 'repositories[0].repositoryUri' \
             --output text \
@@ -124,7 +124,7 @@
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
         with:
-          registry-type: public
+          registry-type: private
 
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
@@ -183,29 +183,7 @@
 
           echo "FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')" >> $GITHUB_OUTPUT
           echo "LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')" >> $GITHUB_OUTPUT
-          echo "DEPLOYMENT_BUCKET=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendAssetsBucket\") | .OutputValue')" >> $GITHUB_OUTPUT
           echo "CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')" >> $GITHUB_OUTPUT
-      - name: Upload Lambda package to S3
-        run: |
-          aws s3 cp frontend-server.zip \
-            s3://${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }}/frontend-server.zip \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Update Lambda function code
-        run: |
-          LAMBDA_FUNCTION_NAME=$(echo "${{ steps.frontend-outputs.outputs.LAMBDA_FUNCTION_ARN }}" | cut -d: -f6)
-
-          aws lambda update-function-code \
-            --function-name $LAMBDA_FUNCTION_NAME \
-            --s3-bucket ${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }} \
-            --s3-key frontend-server.zip \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Upload static assets to S3
-        run: |
-          if [ -d "frontend/public" ]; then
-            aws s3 sync frontend/public/ s3://${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }}/ --delete --region ${{ env.AWS_REGION }}
-          fi
 
       - name: Invalidate CloudFront cache
         run: |
