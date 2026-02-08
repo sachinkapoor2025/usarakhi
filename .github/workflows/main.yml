@@ -102,119 +102,22 @@
           npm install --no-audit --no-fund
           npm run build
 
-      - name: Create Next.js Layer
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: usarakhi-frontend-dev
+          IMAGE_TAG: latest
         run: |
-          # Create temporary directory for Next.js layer
-          LAYER_DIR="temp-nextjs-layer"
-          rm -rf $LAYER_DIR
-          mkdir -p $LAYER_DIR/nodejs
-          
-          # Create package.json for Next.js layer
-          cat > $LAYER_DIR/nodejs/package.json << 'EOF'
-          {
-            "name": "usarakhi-nextjs-layer",
-            "version": "1.0.0",
-            "dependencies": {
-              "next": "^14.0.0"
-            }
-          }
-          EOF
-
-          # Install Next.js in the layer directory
-          cd $LAYER_DIR/nodejs
-          npm install --production --no-audit --no-fund --no-optional
-          
-          # Remove unnecessary files to reduce layer size
-          find node_modules -name "*.test.js" -delete
-          find node_modules -name "*.spec.js" -delete
-          find node_modules -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
-          find node_modules -name "__tests__" -type d -exec rm -rf {} + 2>/dev/null || true
-          
-          # Create layer zip with maximum compression
-          zip -r -9 ../../nextjs-layer.zip . -x "node_modules/aws-sdk/*"
-          
-          cd ../..
-          rm -rf $LAYER_DIR
-
-      - name: Create deployment package
-        run: |
-          # Create temporary directory for deployment
-          TEMP_DIR="temp-frontend-deployment"
-          rm -rf $TEMP_DIR
-          mkdir -p $TEMP_DIR
-          
-          # Copy only essential frontend build files (exclude node_modules)
-          cp -r frontend/.next $TEMP_DIR/
-          cp -r frontend/public $TEMP_DIR/ 2>/dev/null || true
-          
-          # Create server.js for Lambda (minimal version)
-          cat > $TEMP_DIR/server.js << 'EOF'
-          const { createServer, proxy } = require('aws-serverless-express');
-          const { parse } = require('url');
-
-          // Minimal Next.js server setup
-          const next = require('next');
-          const dev = process.env.NODE_ENV !== 'production';
-          const app = next({ dev, conf: { distDir: '.next' } });
-          const handle = app.getRequestHandler();
-
-          let server;
-
-          async function getServer() {
-            if (!server) {
-              await app.prepare();
-              server = createServer((req, res) => {
-                const parsedUrl = parse(req.url, true);
-                handle(req, res, parsedUrl);
-              });
-            }
-            return server;
-          }
-
-          module.exports.handler = async (event, context) => {
-            const server = await getServer();
-            return proxy(server, event, context);
-          };
-          EOF
-
-          # Create minimal package.json for Lambda (only aws-serverless-express)
-          cat > $TEMP_DIR/package.json << 'EOF'
-          {
-            "name": "usarakhi-frontend-lambda",
-            "version": "1.0.0",
-            "dependencies": {
-              "aws-serverless-express": "^3.3.9"
-            }
-          }
-          EOF
-
-          # Install only aws-serverless-express (much smaller)
-          cd $TEMP_DIR
-          npm install --production --no-audit --no-fund --no-optional
-          
-          # Remove unnecessary files to reduce package size
-          find node_modules -name "*.test.js" -delete
-          find node_modules -name "*.spec.js" -delete
-          find node_modules -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
-          find node_modules -name "__tests__" -type d -exec rm -rf {} + 2>/dev/null || true
-          
-          # Create deployment zip with maximum compression
-          zip -r -9 ../frontend-server.zip . -x "node_modules/aws-sdk/*"
-          
-          cd ..
-          rm -rf $TEMP_DIR
-
-      - name: Create deployment bucket
-        run: |
-          aws s3 mb s3://usarakhi-frontend-deployment-dev --region ${{ env.AWS_REGION }} || true
-
-      - name: Upload Next.js Layer
-        run: |
-          aws s3 cp nextjs-layer.zip s3://usarakhi-frontend-deployment-dev/nextjs-layer.zip --region ${{ env.AWS_REGION }}
-
-      - name: Upload deployment package
-        run: |
-          aws s3 cp frontend-server.zip s3://usarakhi-frontend-deployment-dev/nextjs-server.zip --region ${{ env.AWS_REGION }}
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG frontend/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Deploy frontend infrastructure to AWS
         run: |

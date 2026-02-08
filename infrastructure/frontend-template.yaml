@@ -36,32 +36,25 @@
     HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
 
   Resources:
-    # Lambda Layer for Next.js
-    NextJsLayer:
-      Type: AWS::Lambda::LayerVersion
+    # ECR Repository for Docker Image
+    FrontendECRRepository:
+      Type: AWS::ECR::Repository
       Properties:
-        LayerName: !Sub 'usarakhi-nextjs-layer-${Stage}'
-        Description: 'Next.js runtime layer'
-        Content:
-          S3Bucket: !Sub 'usarakhi-frontend-deployment-${Stage}'
-          S3Key: 'nextjs-layer.zip'
-        CompatibleRuntimes:
-          - nodejs20.x
+        RepositoryName: !Sub 'usarakhi-frontend-${Stage}'
+        ImageScanningConfiguration:
+          ScanOnPush: true
+        ImageTagMutability: MUTABLE
 
-    # Lambda Function for Next.js Server
+    # Lambda Function for Next.js Server (Container-based)
     NextJsServerFunction:
       Type: AWS::Lambda::Function
       Properties:
         FunctionName: !Sub 'usarakhi-frontend-${Stage}'
-        Runtime: nodejs20.x
-        Handler: server.handler
+        PackageType: Image
         Code:
-          S3Bucket: !Sub 'usarakhi-frontend-deployment-${Stage}'
-          S3Key: 'nextjs-server.zip'
-        MemorySize: 1024
+          ImageUri: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${FrontendECRRepository}:latest'
+        MemorySize: 2048
         Timeout: 30
-        Layers:
-          - !Ref NextJsLayer
         Environment:
           Variables:
             NODE_ENV: production
