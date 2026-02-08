@@ -4,8 +4,9 @@ FROM node:20-alpine
 # Set working directory
 WORKDIR /app
 
-# Install AWS Lambda Runtime Interface Client
-RUN npm install -g aws-lambda-ric
+# Install build tools and AWS Lambda Runtime Interface Client
+RUN apk add --no-cache python3 make g++ cmake && \
+    npm install -g aws-lambda-ric
 
 # Copy package files
 COPY package*.json ./
