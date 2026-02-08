@@ -1,341 +1,336 @@
-name: Deploy Usa Rakhi
+  name: Deploy Usa Rakhi
 
-on:
-  push:
-    branches: [ main, develop, 'feature/*' ]
-  pull_request:
-    branches: [ main, develop, 'feature/*' ]
+  on:
+    push:
+      branches: [ main, develop, 'feature/*' ]
+    pull_request:
+      branches: [ main, develop, 'feature/*' ]
 
-env:
-  AWS_REGION: us-east-1
-  SAM_CLI_TELEMETRY: 0
+  env:
+    AWS_REGION: us-east-1
+    SAM_CLI_TELEMETRY: 0
 
-jobs:
-  # test:
-  #   runs-on: ubuntu-latest
-  #   
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
-  #
-  #   - name: Setup Node.js
-  #     uses: actions/setup-node@v4
-  #     with:
-  #       node-version: '20'
-  #       cache: 'npm'
-  #
-  #   - name: Install frontend dependencies
-  #     run: |
-  #       cd frontend
-  #       npm install --no-audit --no-fund
-  #
-  #   - name: Run frontend tests
-  #     run: |
-  #       cd frontend
-  #       npm test -- --watchAll=false --passWithNoTests
-  #
-  #   - name: Run frontend linting
-  #     run: |
-  #       cd frontend
-  #       npm run lint
-  #
-  #   - name: Install backend dependencies
-  #     run: |
-  #       cd backend
-  #       npm ci
-  #
-  #   - name: Run backend tests 
-  #     run: |
-  #       cd backend
-  #       npm test
-  #
-  #   - name: Run backend linting
-  #     run: |
-  #       cd backend
-  #       npm run lint
+  jobs:
+    # test:
+    #   runs-on: ubuntu-latest
+    #   
+    #   steps:
+    #   - name: Checkout code
+    #     uses: actions/checkout@v4
+    #
+    #   - name: Setup Node.js
+    #     uses: actions/setup-node@v4
+    #     with:
+    #       node-version: '20'
+    #       cache: 'npm'
+    #
+    #   - name: Install frontend dependencies
+    #     run: |
+    #       cd frontend
+    #       npm install --no-audit --no-fund
+    #
+    #   - name: Run frontend tests
+    #     run: |
+    #       cd frontend
+    #       npm test -- --watchAll=false --passWithNoTests
+    #
+    #   - name: Run frontend linting
+    #     run: |
+    #       cd frontend
+    #       npm run lint
+    #
+    #   - name: Install backend dependencies
+    #     run: |
+    #       cd backend
+    #       npm ci
+    #
+    #   - name: Run backend tests 
+    #     run: |
+    #       cd backend
+    #       npm test
+    #
+    #   - name: Run backend linting
+    #     run: |
+    #       cd backend
+    #       npm run lint
 
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    build-and-deploy:
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
+      
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
-    - name: Setup AWS SAM
-      uses: aws-actions/setup-sam@v2
+      - name: Setup AWS SAM
+        uses: aws-actions/setup-sam@v2
 
-    - name: Build backend
-      run: |
-        cd backend
-        npm install --no-audit --no-fund
-        npm run build
+      - name: Build backend
+        run: |
+          cd backend
+          npm install --no-audit --no-fund
+          npm run build
 
-    # - name: Deploy backend infrastructure
-    #   run: |
-    #     cd infrastructure
-    #     sam build --template template.yaml
-    #     STAGE_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
-    #     sam deploy \
-    #       --stack-name usa-rakhi-dev-1 \
-    #       --parameter-overrides \
-    #         Stage=$STAGE_NAME \
-    #         StripeSecretKey=dummy-stripe-key \
-    #         CognitoUserPoolId=dummy-user-pool-id \
-    #         CognitoClientId=dummy-client-id \
-    #         FrontendUrl=https://www.usarakhi.com \
-    #         OpenAIAPIKey=sk-sample-openai-key-for-testing \
-    #       --capabilities CAPABILITY_IAM \
-    #       --resolve-s3 \
-    #       --no-fail-on-empty-changeset
+      - name: Deploy backend infrastructure
+        run: |
+          cd infrastructure
+          sam build --template template.yaml
+          STAGE_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
+          sam deploy \
+            --stack-name usa-rakhi-dev-1 \
+            --parameter-overrides \
+              Stage=$STAGE_NAME \
+              StripeSecretKey=dummy-stripe-key \
+              CognitoUserPoolId=dummy-user-pool-id \
+              CognitoClientId=dummy-client-id \
+              FrontendUrl=https://www.usarakhi.com \
+              OpenAIAPIKey=sk-sample-openai-key-for-testing \
+            --capabilities CAPABILITY_IAM \
+            --resolve-s3 \
+            --no-fail-on-empty-changeset
 
-    # - name: Build frontend
-    #   run: |
-    #     cd frontend
-    #     npm install --no-audit --no-fund
-    #     npm run build
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install --no-audit --no-fund
+          npm run build
 
-    - name: Deploy frontend infrastructure to AWS
-      run: |
-        # Clean branch name for stack name (remove invalid characters)
-        CLEAN_BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g')
-        
-        # Deploy frontend CloudFormation stack
-        aws cloudformation create-stack \
-          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
-          --template-body file://infrastructure/frontend-template.yaml \
-          --parameters \
-            ParameterKey=Stage,ParameterValue=${CLEAN_BRANCH_NAME} \
-            ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
-            ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
-            ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
-            ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
-          --capabilities CAPABILITY_IAM \
-          --region ${{ env.AWS_REGION }} \
-          || aws cloudformation update-stack \
-          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
-          --template-body file://infrastructure/frontend-template.yaml \
-          --parameters \
-            ParameterKey=Stage,ParameterValue=${CLEAN_BRANCH_NAME} \
-            ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
-            ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
-            ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
-            ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
-          --capabilities CAPABILITY_IAM \
-          --region ${{ env.AWS_REGION }}
+      - name: Deploy frontend infrastructure to AWS
+        run: |
+          STAGE_NAME=dev
+          
+          aws cloudformation create-stack \
+            --stack-name usa-rakhi-frontend \
+            --template-body file://infrastructure/frontend-template.yaml \
+            --parameters \
+              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
+              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
+              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
+              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.AWS_REGION }} \
+            || aws cloudformation update-stack \
+            --stack-name usa-rakhi-frontend \
+            --template-body file://infrastructure/frontend-template.yaml \
+            --parameters \
+              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
+              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
+              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
+              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.AWS_REGION }}
 
-    - name: Wait for frontend stack deployment
-      run: |
-        # Clean branch name for stack name (remove invalid characters)
-        CLEAN_BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g')
-        
-        aws cloudformation wait stack-create-complete \
-          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
-          --region ${{ env.AWS_REGION }} \
-          || aws cloudformation wait stack-update-complete \
-          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
-          --region ${{ env.AWS_REGION }}
+      - name: Wait for frontend stack deployment
+        run: |
+          aws cloudformation wait stack-create-complete \
+            --stack-name usa-rakhi-frontend \
+            --region ${{ env.AWS_REGION }} \
+            || aws cloudformation wait stack-update-complete \
+            --stack-name usa-rakhi-frontend \
+            --region ${{ env.AWS_REGION }}
 
-    - name: Get frontend stack outputs
-      id: frontend-outputs
-      run: |
-        # Clean branch name for stack name (remove invalid characters)
-        CLEAN_BRANCH_NAME=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g')
-        
-        STACK_OUTPUTS=$(aws cloudformation describe-stacks \
-          --stack-name usa-rakhi-frontend-${CLEAN_BRANCH_NAME} \
-          --region ${{ env.AWS_REGION }} \
-          --query 'Stacks[0].Outputs' --output json)
-        
-        echo "FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')" >> $GITHUB_OUTPUT
-        echo "LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')" >> $GITHUB_OUTPUT
-        echo "DEPLOYMENT_BUCKET=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendAssetsBucket\") | .OutputValue')" >> $GITHUB_OUTPUT
-        echo "CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')" >> $GITHUB_OUTPUT
+      - name: Get frontend stack outputs
+        id: frontend-outputs
+        run: |
+          STACK_OUTPUTS=$(aws cloudformation describe-stacks \
+            --stack-name usa-rakhi-frontend \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' --output json)
 
-    - name: Create deployment package
-      run: |
-        # Create temporary directory for deployment
-        TEMP_DIR="temp-frontend-deployment"
-        rm -rf $TEMP_DIR
-        mkdir -p $TEMP_DIR
-        
-        # Copy frontend build files
-        cp -r frontend/.next $TEMP_DIR/
-        cp -r frontend/public $TEMP_DIR/ 2>/dev/null || true
-        cp frontend/package.json $TEMP_DIR/
-        cp frontend/package-lock.json $TEMP_DIR/ 2>/dev/null || true
-        
-        # Create server.js for Lambda
-        cat > $TEMP_DIR/server.js << 'EOF'
-        const { createServer, proxy } = require('aws-serverless-express');
-        const { parse } = require('url');
-        const next = require('next');
+          echo "FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "DEPLOYMENT_BUCKET=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendAssetsBucket\") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')" >> $GITHUB_OUTPUT
 
-        const dev = process.env.NODE_ENV !== 'production';
-        const app = next({ dev, conf: { distDir: '.next' } });
-        const handle = app.getRequestHandler();
 
-        let server;
+      - name: Create deployment package
+        run: |
+          # Create temporary directory for deployment
+          TEMP_DIR="temp-frontend-deployment"
+          rm -rf $TEMP_DIR
+          mkdir -p $TEMP_DIR
+          
+          # Copy frontend build files
+          cp -r frontend/.next $TEMP_DIR/
+          cp -r frontend/public $TEMP_DIR/ 2>/dev/null || true
+          cp frontend/package.json $TEMP_DIR/
+          cp frontend/package-lock.json $TEMP_DIR/ 2>/dev/null || true
+          
+          # Create server.js for Lambda
+          cat > $TEMP_DIR/server.js << 'EOF'
+          const { createServer, proxy } = require('aws-serverless-express');
+          const { parse } = require('url');
+          const next = require('next');
 
-        async function getServer() {
-          if (!server) {
-            await app.prepare();
-            server = createServer((req, res) => {
-              const parsedUrl = parse(req.url, true);
-              handle(req, res, parsedUrl);
-            });
+          const dev = process.env.NODE_ENV !== 'production';
+          const app = next({ dev, conf: { distDir: '.next' } });
+          const handle = app.getRequestHandler();
+
+          let server;
+
+          async function getServer() {
+            if (!server) {
+              await app.prepare();
+              server = createServer((req, res) => {
+                const parsedUrl = parse(req.url, true);
+                handle(req, res, parsedUrl);
+              });
+            }
+            return server;
           }
-          return server;
-        }
 
-        module.exports.handler = async (event, context) => {
-          const server = await getServer();
-          return proxy(server, event, context);
-        };
-        EOF
+          module.exports.handler = async (event, context) => {
+            const server = await getServer();
+            return proxy(server, event, context);
+          };
+          EOF
 
-        # Create package.json for Lambda
-        cat > $TEMP_DIR/package.json << 'EOF'
-        {
-          "name": "usarakhi-frontend-lambda",
-          "version": "1.0.0",
-          "dependencies": {
-            "next": "^14.0.0",
-            "aws-serverless-express": "^3.3.9",
-            "aws-lambda": "^1.0.6"
+          # Create package.json for Lambda
+          cat > $TEMP_DIR/package.json << 'EOF'
+          {
+            "name": "usarakhi-frontend-lambda",
+            "version": "1.0.0",
+            "dependencies": {
+              "next": "^14.0.0",
+              "aws-serverless-express": "^3.3.9",
+              "aws-lambda": "^1.0.6"
+            }
           }
-        }
-        EOF
+          EOF
 
-        # Install Lambda dependencies
-        cd $TEMP_DIR
-        npm install --production --no-audit --no-fund
-        
-        # Create deployment zip
-        zip -r ../frontend-server.zip . -x "node_modules/aws-sdk/*"
-        
-        cd ..
-        rm -rf $TEMP_DIR
+          # Install Lambda dependencies
+          cd $TEMP_DIR
+          npm install --production --no-audit --no-fund
+          
+          # Create deployment zip
+          zip -r ../frontend-server.zip . -x "node_modules/aws-sdk/*"
+          
+          cd ..
+          rm -rf $TEMP_DIR
+      - name: Upload Lambda package to S3
+        run: |
+          aws s3 cp frontend-server.zip \
+            s3://${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }}/frontend-server.zip \
+            --region ${{ env.AWS_REGION }}
 
-    - name: Update Lambda function code
-      run: |
-        LAMBDA_FUNCTION_NAME=$(echo "${{ steps.frontend-outputs.outputs.LAMBDA_FUNCTION_ARN }}" | cut -d: -f6)
-        
-        aws lambda update-function-code \
-          --function-name $LAMBDA_FUNCTION_NAME \
-          --s3-bucket ${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }} \
-          --s3-key frontend-server.zip \
-          --region ${{ env.AWS_REGION }}
+      - name: Update Lambda function code
+        run: |
+          LAMBDA_FUNCTION_NAME=$(echo "${{ steps.frontend-outputs.outputs.LAMBDA_FUNCTION_ARN }}" | cut -d: -f6)
 
-    - name: Upload static assets to S3
-      run: |
-        if [ -d "frontend/public" ]; then
-          aws s3 sync frontend/public/ s3://${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }}/ --delete --region ${{ env.AWS_REGION }}
-        fi
+          aws lambda update-function-code \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --s3-bucket ${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }} \
+            --s3-key frontend-server.zip \
+            --region ${{ env.AWS_REGION }}
 
-    - name: Invalidate CloudFront cache
-      run: |
-        aws cloudfront create-invalidation \
-          --distribution-id ${{ steps.frontend-outputs.outputs.CLOUDFRONT_ID }} \
-          --paths "/*" \
-          --region ${{ env.AWS_REGION }}
+      - name: Upload static assets to S3
+        run: |
+          if [ -d "frontend/public" ]; then
+            aws s3 sync frontend/public/ s3://${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }}/ --delete --region ${{ env.AWS_REGION }}
+          fi
 
-    - name: Notify frontend deployment
-      run: |
-        echo "✅ Frontend deployed successfully!"
-        echo "🌐 Frontend URL: ${{ steps.frontend-outputs.outputs.FRONTEND_URL }}"
-        echo "🔗 API Gateway URL: https://${{ github.ref_name }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/${{ github.ref_name }}"
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.frontend-outputs.outputs.CLOUDFRONT_ID }} \
+            --paths "/*" \
+            --region ${{ env.AWS_REGION }}
 
-    - name: Notify deployment
-      run: |
-        echo "✅ Backend deployed successfully!"
-        echo "API URL: ${{ steps.api-url.outputs.api_url }}"
-        echo "Frontend bucket: usarakhi-frontend-${{ github.ref_name }}"
+      - name: Notify frontend deployment
+        run: |
+          echo "✅ Frontend deployed successfully!"
+          echo "🌐 Frontend URL: ${{ steps.frontend-outputs.outputs.FRONTEND_URL }}"
 
-  deploy-staging:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
-    
-    steps:
-    - name: Notify staging deployment
-      run: |
-        echo "🚀 Deploying to staging environment..."
-        echo "Branch: ${{ github.ref }}"
-        echo "Commit: ${{ github.sha }}"
+      - name: Notify deployment
+        run: |
+          echo "✅ Deployment finished successfully"
 
-  deploy-feature:
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/heads/feature/')
-    
-    steps:
-    - name: Notify feature deployment
-      run: |
-        echo "🚀 Deploying to feature environment..."
-        echo "Branch: ${{ github.ref }}"
-        echo "Commit: ${{ github.sha }}"
+    deploy-staging:
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
+      
+      steps:
+      - name: Notify staging deployment
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
 
-  deploy-production:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    
-    steps:
-    - name: Notify production deployment
-      run: |
-        echo "🚀 Deploying to production environment..."
-        echo "Branch: ${{ github.ref }}"
-        echo "Commit: ${{ github.sha }}"
+    deploy-feature:
+      runs-on: ubuntu-latest
+      if: startsWith(github.ref, 'refs/heads/feature/')
+      
+      steps:
+      - name: Notify feature deployment
+        run: |
+          echo "🚀 Deploying to feature environment..."
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
 
-  # security-scan:
-  #   runs-on: ubuntu-latest
-  #   if: github.event_name == 'pull_request'
-  #   
-  #   steps:
-  #   - name: Checkout code 
-  #     uses: actions/checkout@v4
-  #
-  #   - name: Run Trivy vulnerability scanner
-  #     uses: aquasecurity/trivy-action@master
-  #     with:
-  #       scan-type: 'fs'
-  #       scan-ref: '.'
-  #       format: 'sarif'
-  #       output: 'trivy-results.sarif'
-  #
-  #   - name: Upload Trivy scan results to GitHub Security tab
-  #     uses: github/codeql-action/upload-sarif@v2
-  #     if: always()
-  #     with:
-  #       sarif_file: 'trivy-results.sarif'
-  #
-  # performance-test:
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/main'
-  #   
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
-  #
-  #   - name: Setup Node.js
-  #     uses: actions/setup-node@v4
-  #     with:
-  #       node-version: '20'
-  #
-  #   - name: Install Lighthouse CI
-  #     run: npm install -g @lhci/cli@0.12.x
-  #
-  #   - name: Run Lighthouse CI
-  #     run: |
-  #       cd frontend
-  #       npm install --no-audit --no-fund
-  #       npm run build
-  #       lhci autorun
-  #     env:
-  #       LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+    deploy-production:
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/main'
+      environment: production
+      
+      steps:
+      - name: Notify production deployment
+        run: |
+          echo "🚀 Deploying to production environment..."
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+
+    # security-scan:
+    #   runs-on: ubuntu-latest
+    #   if: github.event_name == 'pull_request'
+    #   
+    #   steps:
+    #   - name: Checkout code 
+    #     uses: actions/checkout@v4
+    #
+    #   - name: Run Trivy vulnerability scanner
+    #     uses: aquasecurity/trivy-action@master
+    #     with:
+    #       scan-type: 'fs'
+    #       scan-ref: '.'
+    #       format: 'sarif'
+    #       output: 'trivy-results.sarif'
+    #
+    #   - name: Upload Trivy scan results to GitHub Security tab
+    #     uses: github/codeql-action/upload-sarif@v2
+    #     if: always()
+    #     with:
+    #       sarif_file: 'trivy-results.sarif'
+    #
+    # performance-test:
+    #   runs-on: ubuntu-latest
+    #   if: github.ref == 'refs/heads/main'
+    #   
+    #   steps:
+    #   - name: Checkout code
+    #     uses: actions/checkout@v4
+    #
+    #   - name: Setup Node.js
+    #     uses: actions/setup-node@v4
+    #     with:
+    #       node-version: '20'
+    #
+    #   - name: Install Lighthouse CI
+    #     run: npm install -g @lhci/cli@0.12.x
+    #
+    #   - name: Run Lighthouse CI
+    #     run: |
+    #       cd frontend
+    #       npm install --no-audit --no-fund
+    #       npm run build
+    #       lhci autorun
+    #     env:
+    #       LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
