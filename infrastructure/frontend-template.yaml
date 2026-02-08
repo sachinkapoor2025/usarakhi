@@ -192,16 +192,14 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
-        Aliases:
-          - !Ref FrontendDomain
+        Enabled: true
+        DefaultRootObject: index.html
         Origins:
           - Id: NextJsServerOrigin
             DomainName: !Sub '${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
             CustomOriginConfig:
-              HTTPPort: 80
-              HTTPSPort: 443
               OriginProtocolPolicy: https-only
-              OriginSslProtocols:
+              OriginSSLProtocols:
                 - TLSv1.2
           - Id: StaticAssetsOrigin
             DomainName: !GetAtt FrontendAssetsBucket.RegionalDomainName
@@ -210,33 +208,39 @@ Resources:
         DefaultCacheBehavior:
           TargetOriginId: NextJsServerOrigin
           ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods: [ GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE ]
+          CachedMethods: [ GET, HEAD, OPTIONS ]
           CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
-          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # AllViewer
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3  # AllViewer
           FunctionAssociations:
             - EventType: viewer-request
-              FunctionARN: !GetAtt CloudFrontFunction.FunctionMetadata.FunctionARN
+              FunctionARN: !GetAtt CloudFrontFunction.Arn
         CacheBehaviors:
           - PathPattern: '_next/static/*'
             TargetOriginId: StaticAssetsOrigin
             ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [ GET, HEAD, OPTIONS ]
+            CachedMethods: [ GET, HEAD ]
             CachePolicyId: 658327ea-f89d-4fab-84b5-ea7d756506d5  # Managed-CachingOptimized
           - PathPattern: 'static/*'
             TargetOriginId: StaticAssetsOrigin
             ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [ GET, HEAD, OPTIONS ]
+            CachedMethods: [ GET, HEAD ]
             CachePolicyId: 658327ea-f89d-4fab-84b5-ea7d756506d5  # Managed-CachingOptimized
-        DefaultRootObject: index.html
-        Enabled: true
+        PriceClass: PriceClass_100
         HttpVersion: http2
         IPV6Enabled: true
-        PriceClass: PriceClass_100
-        ViewerCertificate: !If
-          - HasCertificate
-          - 
-            AcmCertificateArn: !Ref CertificateArn
-            SslSupportMethod: sni-only
-            MinimumProtocolVersion: TLSv1.2_2021
-          - 
-            CloudFrontDefaultCertificate: true
+        ViewerCertificate:
+          AcmCertificateArn: !If
+            - HasCertificate
+            - !Ref CertificateArn
+            - !Ref AWS::NoValue
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
 
   # CloudFront Origin Access Identity
   FrontendCloudFrontOAI:
@@ -254,25 +258,25 @@ Resources:
       FunctionConfig:
         Comment: Rewrite URLs for Next.js routing
         Runtime: cloudfront-js-2.0
-      FunctionCode: |
-        function handler(event) {
-          var request = event.request;
-          var uri = request.uri;
+        Code: |
+          function handler(event) {
+            var request = event.request;
+            var uri = request.uri;
 
-          // Skip API routes
-          if (uri.startsWith('/api/')) {
+            // Skip API routes
+            if (uri.startsWith('/api/')) {
+              return request;
+            }
+
+            // Skip static assets
+            if (uri.includes('.') && uri.indexOf('.') > uri.lastIndexOf('/')) {
+              return request;
+            }
+
+            // Rewrite to index.html for client-side routing
+            request.uri = '/index.html';
             return request;
           }
-
-          // Skip static assets
-          if (uri.includes('.') && uri.indexOf('.') > uri.lastIndexOf('/')) {
-            return request;
-          }
-
-          // Rewrite to index.html for client-side routing
-          request.uri = '/index.html';
-          return request;
-        }
 
   # S3 Deployment Bucket (for deployment artifacts)
   FrontendDeploymentBucket:
