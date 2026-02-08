@@ -254,25 +254,25 @@ Resources:
       FunctionConfig:
         Comment: Rewrite URLs for Next.js routing
         Runtime: cloudfront-js-2.0
-        Code: |
-          function handler(event) {
-            var request = event.request;
-            var uri = request.uri;
-            
-            // Skip API routes
-            if (uri.startsWith('/api/')) {
-              return request;
-            }
-            
-            // Skip static assets
-            if (uri.includes('.') && uri.indexOf('.') > uri.lastIndexOf('/')) {
-              return request;
-            }
-            
-            // Rewrite to index.html for client-side routing
-            request.uri = '/index.html';
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+
+          // Skip API routes
+          if (uri.startsWith('/api/')) {
             return request;
           }
+
+          // Skip static assets
+          if (uri.includes('.') && uri.indexOf('.') > uri.lastIndexOf('/')) {
+            return request;
+          }
+
+          // Rewrite to index.html for client-side routing
+          request.uri = '/index.html';
+          return request;
+        }
 
   # S3 Deployment Bucket (for deployment artifacts)
   FrontendDeploymentBucket:
