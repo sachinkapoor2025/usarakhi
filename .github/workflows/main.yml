@@ -101,7 +101,6 @@ jobs:
         cd frontend
         npm install --no-audit --no-fund
         npm run build
-        npm run export
 
     - name: Configure AWS credentials for S3
       uses: aws-actions/configure-aws-credentials@v4
