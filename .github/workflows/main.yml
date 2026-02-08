@@ -102,6 +102,24 @@
           npm install --no-audit --no-fund
           npm run build
 
+      - name: Create ECR repository
+        id: create-ecr
+        run: |
+          aws ecr-public create-repository \
+            --repository-name usarakhi-frontend-dev \
+            --region us-east-1 \
+            || echo "Repository already exists"
+          
+          # Get the ECR registry URL
+          ECR_REGISTRY=$(aws ecr-public describe-repositories \
+            --repository-names usarakhi-frontend-dev \
+            --query 'repositories[0].repositoryUri' \
+            --output text \
+            --region us-east-1)
+          
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_OUTPUT
+          echo "ECR_REPOSITORY=usarakhi-frontend-dev" >> $GITHUB_OUTPUT
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
@@ -111,13 +129,13 @@
       - name: Build, tag, and push image to Amazon ECR
         id: build-image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: usarakhi-frontend-dev
+          ECR_REGISTRY: ${{ steps.create-ecr.outputs.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ steps.create-ecr.outputs.ECR_REPOSITORY }}
           IMAGE_TAG: latest
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG frontend/
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          docker build -t $ECR_REGISTRY:$IMAGE_TAG frontend/
+          docker push $ECR_REGISTRY:$IMAGE_TAG
+          echo "image=$ECR_REGISTRY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Deploy frontend infrastructure to AWS
         run: |
