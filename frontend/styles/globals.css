@@ -2,48 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles */
-@layer base {
-  html {
-    font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
   }
 }
 
-@layer components {
-  .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 shadow-md hover:shadow-lg;
-  }
-
-  .btn-secondary {
-    @apply bg-gray-100 hover:bg-gray-200 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
-  }
-
-  .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200;
-  }
-
-  .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
-  }
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
 }
 
-/* Product image styles */
-.product-image {
-  @apply w-full h-48 object-cover rounded-t-lg;
-}
-
-/* Animation classes */
-.fade-in {
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-.slide-up {
-  animation: slideUp 0.3s ease-out;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .product-image {
-    @apply h-36;
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }

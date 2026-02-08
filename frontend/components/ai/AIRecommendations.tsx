@@ -1,9 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Star, Sparkles, Gift, Heart } from 'lucide-react'
 import { AIAssistant, AIRecommendation } from '@/lib/ai'
 
@@ -58,20 +55,20 @@ export function AIRecommendations({ products, onAddToCart }: AIRecommendationsPr
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Sparkles className="h-5 w-5 text-primary-600" />
-            <span>AI Recommendations</span>
-          </CardTitle>
-          <CardDescription>Generating personalized suggestions...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="p-4 border-b">
+          <div className="flex items-center space-x-2">
+            <Sparkles className="h-5 w-5 text-blue-600" />
+            <h3 className="font-semibold text-gray-900">AI Recommendations</h3>
           </div>
-        </CardContent>
-      </Card>
+          <p className="text-sm text-gray-600 mt-1">Generating personalized suggestions...</p>
+        </div>
+        <div className="p-4">
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -80,33 +77,33 @@ export function AIRecommendations({ products, onAddToCart }: AIRecommendationsPr
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <Sparkles className="h-5 w-5 text-primary-600" />
-          <span>AI-Powered Recommendations</span>
-        </CardTitle>
-        <CardDescription>
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="p-4 border-b">
+        <div className="flex items-center space-x-2">
+          <Sparkles className="h-5 w-5 text-blue-600" />
+          <h3 className="font-semibold text-gray-900">AI-Powered Recommendations</h3>
+        </div>
+        <p className="text-sm text-gray-600 mt-1">
           Personalized Rakhi suggestions based on your preferences
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
+      </div>
+      <div className="p-4">
         <div className="space-y-6">
           {recommendedProducts.map((product, index) => {
             const rec = recommendations.find(r => r.productId === product.id)
             return (
               <div key={product.id} className="flex items-center space-x-4 p-4 border rounded-lg hover:shadow-md transition-shadow">
                 <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <Gift className="h-8 w-8 text-primary-600" />
+                  <Gift className="h-8 w-8 text-blue-600" />
                 </div>
                 
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-900">{product.name}</h3>
                     <div className="flex items-center space-x-2">
-                      <Badge variant="secondary" className="text-xs">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
                         Match: {rec?.matchScore || 85}%
-                      </Badge>
+                      </span>
                       <div className="flex items-center space-x-1">
                         <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                         <span className="text-sm text-gray-600">4.8</span>
@@ -119,14 +116,13 @@ export function AIRecommendations({ products, onAddToCart }: AIRecommendationsPr
                 
                 <div className="flex flex-col items-end space-y-2">
                   <span className="text-lg font-bold text-gray-900">${product.price}</span>
-                  <Button
-                    size="sm"
+                  <button
                     onClick={() => onAddToCart?.(product.id)}
-                    className="bg-primary-600 hover:bg-primary-700"
+                    className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                   >
-                    <Heart className="h-4 w-4 mr-2" />
+                    <Heart className="h-4 w-4 mr-2 inline" />
                     Add to Cart
-                  </Button>
+                  </button>
                 </div>
               </div>
             )
@@ -138,11 +134,14 @@ export function AIRecommendations({ products, onAddToCart }: AIRecommendationsPr
             <Sparkles className="h-4 w-4" />
             <span>Powered by AI</span>
           </div>
-          <Button variant="outline" onClick={generateRecommendations}>
+          <button
+            onClick={generateRecommendations}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          >
             Refresh Recommendations
-          </Button>
+          </button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

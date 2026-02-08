@@ -1,11 +1,7 @@
+
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
 import { Copy, RefreshCw, MessageSquare } from 'lucide-react'
 import { AIAssistant } from '@/lib/ai'
 
@@ -50,89 +46,90 @@ export function AIGiftMessage({ onMessageGenerated }: AIGiftMessageProps) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <MessageSquare className="h-5 w-5 text-primary-600" />
-          <span>AI Gift Message Generator</span>
-        </CardTitle>
-        <CardDescription>
+    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="p-4 border-b">
+        <div className="flex items-center space-x-2">
+          <MessageSquare className="h-5 w-5 text-blue-600" />
+          <h3 className="font-semibold text-gray-900">AI Gift Message Generator</h3>
+        </div>
+        <p className="text-sm text-gray-600 mt-1">
           Create heartfelt messages for your Rakhi gift
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </p>
+      </div>
+      <div className="p-4 space-y-4">
         {/* Form Controls */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="recipient">Recipient</Label>
-            <Select value={recipient} onValueChange={setRecipient}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select recipient" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Brother">Brother</SelectItem>
-                <SelectItem value="Sister">Sister</SelectItem>
-                <SelectItem value="Cousin">Cousin</SelectItem>
-                <SelectItem value="Friend">Friend</SelectItem>
-              </SelectContent>
-            </Select>
+            <label htmlFor="recipient" className="block text-sm font-medium text-gray-700">
+              Recipient
+            </label>
+            <select
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Brother">Brother</option>
+              <option value="Sister">Sister</option>
+              <option value="Cousin">Cousin</option>
+              <option value="Friend">Friend</option>
+            </select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tone">Message Tone</Label>
-            <Select value={tone} onValueChange={(value) => setTone(value as any)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select tone" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="traditional">Traditional</SelectItem>
-                <SelectItem value="modern">Modern</SelectItem>
-                <SelectItem value="funny">Funny</SelectItem>
-                <SelectItem value="emotional">Emotional</SelectItem>
-              </SelectContent>
-            </Select>
+            <label htmlFor="tone" className="block text-sm font-medium text-gray-700">
+              Message Tone
+            </label>
+            <select
+              value={tone}
+              onChange={(e) => setTone(e.target.value as any)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="traditional">Traditional</option>
+              <option value="modern">Modern</option>
+              <option value="funny">Funny</option>
+              <option value="emotional">Emotional</option>
+            </select>
           </div>
         </div>
 
         {/* Generate Button */}
         <div className="flex space-x-2">
-          <Button
+          <button
             onClick={generateMessage}
             disabled={loading}
-            className="flex items-center space-x-2"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <MessageSquare className="h-4 w-4" />
             <span>{loading ? 'Generating...' : 'Generate Message'}</span>
-          </Button>
+          </button>
           
           {generatedMessage && (
-            <Button
-              variant="outline"
+            <button
               onClick={regenerateMessage}
-              className="flex items-center space-x-2"
+              className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
             >
               <RefreshCw className="h-4 w-4" />
               <span>Regenerate</span>
-            </Button>
+            </button>
           )}
         </div>
 
         {/* Generated Message */}
         {generatedMessage && (
           <div className="space-y-2">
-            <Label>Generated Message</Label>
+            <label className="block text-sm font-medium text-gray-700">
+              Generated Message
+            </label>
             <div className="relative">
-              <Textarea
+              <textarea
                 value={generatedMessage}
                 onChange={(e) => setGeneratedMessage(e.target.value)}
-                className="min-h-[120px] pr-20"
+                className="w-full min-h-[120px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 pr-20"
                 placeholder="Your personalized message will appear here..."
               />
-              <Button
-                variant="ghost"
-                size="sm"
+              <button
                 onClick={copyToClipboard}
-                className="absolute right-2 top-2"
+                className="absolute right-2 top-2 px-2 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
                 disabled={!generatedMessage}
               >
                 {copied ? (
@@ -140,12 +137,12 @@ export function AIGiftMessage({ onMessageGenerated }: AIGiftMessageProps) {
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
-              </Button>
+              </button>
             </div>
             
             <div className="flex justify-between items-center text-sm text-gray-500">
               <span>Tip: Edit the message to make it more personal</span>
-              <span className="text-primary-600">AI-Powered</span>
+              <span className="text-blue-600">AI-Powered</span>
             </div>
           </div>
         )}
@@ -161,7 +158,7 @@ export function AIGiftMessage({ onMessageGenerated }: AIGiftMessageProps) {
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

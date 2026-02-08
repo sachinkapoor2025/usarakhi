@@ -1,10 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Send, Bot, User, X, MessageSquare } from 'lucide-react'
 import { AIAssistant, ChatMessage } from '@/lib/ai'
 
@@ -103,13 +99,13 @@ export function AIChatWidget({ className }: AIChatWidgetProps) {
 
   if (!isOpen) {
     return (
-      <Button
+      <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-lg bg-primary-600 hover:bg-primary-700"
+        className="fixed bottom-6 right-6 w-16 h-16 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700 text-white"
         aria-label="Open chat"
       >
         <MessageSquare className="h-6 w-6" />
-      </Button>
+      </button>
     )
   }
 
@@ -118,28 +114,24 @@ export function AIChatWidget({ className }: AIChatWidgetProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-3">
-          <Avatar className="h-10 w-10 bg-primary-100">
-            <AvatarFallback>
-              <Bot className="h-6 w-6 text-primary-600" />
-            </AvatarFallback>
-          </Avatar>
+          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+            <Bot className="h-6 w-6 text-blue-600" />
+          </div>
           <div>
             <h3 className="font-semibold text-gray-900">Rakhi Assistant</h3>
             <p className="text-xs text-gray-500">AI-Powered Support</p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
           onClick={() => setIsOpen(false)}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 border-none bg-transparent hover:bg-gray-100 rounded"
         >
           <X className="h-4 w-4" />
-        </Button>
+        </button>
       </div>
 
       {/* Messages */}
-      <ScrollArea className="h-80 p-4 space-y-4">
+      <div className="h-80 p-4 space-y-4 overflow-y-auto">
         {messages.map((message, index) => (
           <div
             key={index}
@@ -149,22 +141,18 @@ export function AIChatWidget({ className }: AIChatWidgetProps) {
               message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''
             }`}>
               {message.role === 'user' ? (
-                <Avatar className="h-8 w-8 bg-gray-100">
-                  <AvatarFallback>
-                    <User className="h-4 w-4 text-gray-600" />
-                  </AvatarFallback>
-                </Avatar>
+                <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 text-gray-600" />
+                </div>
               ) : (
-                <Avatar className="h-8 w-8 bg-primary-100">
-                  <AvatarFallback>
-                    <Bot className="h-4 w-4 text-primary-600" />
-                  </AvatarFallback>
-                </Avatar>
+                <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-blue-600" />
+                </div>
               )}
               <div
                 className={`px-3 py-2 rounded-lg ${
                   message.role === 'user'
-                    ? 'bg-primary-600 text-white'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
                 }`}
               >
@@ -177,11 +165,9 @@ export function AIChatWidget({ className }: AIChatWidgetProps) {
         {isTyping && (
           <div className="flex justify-start">
             <div className="flex items-start space-x-2 max-w-xs">
-              <Avatar className="h-8 w-8 bg-primary-100">
-                <AvatarFallback>
-                  <Bot className="h-4 w-4 text-primary-600" />
-                </AvatarFallback>
-              </Avatar>
+              <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <Bot className="h-4 w-4 text-blue-600" />
+              </div>
               <div className="px-3 py-2 rounded-lg bg-gray-100">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
@@ -193,7 +179,7 @@ export function AIChatWidget({ className }: AIChatWidgetProps) {
           </div>
         )}
         <div ref={messagesEndRef} />
-      </ScrollArea>
+      </div>
 
       {/* Quick Questions */}
       {messages.length === 1 && (
@@ -204,7 +190,7 @@ export function AIChatWidget({ className }: AIChatWidgetProps) {
               <button
                 key={index}
                 onClick={() => handleQuickQuestion(question)}
-                className="text-left text-xs text-primary-600 hover:text-primary-700 hover:underline block w-full text-left"
+                className="text-left text-xs text-blue-600 hover:text-blue-700 hover:underline block w-full text-left"
               >
                 {question}
               </button>
@@ -216,17 +202,21 @@ export function AIChatWidget({ className }: AIChatWidgetProps) {
       {/* Input */}
       <div className="p-4 border-t">
         <form id="chat-form" onSubmit={handleSendMessage} className="flex space-x-2">
-          <Input
+          <input
             ref={inputRef}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1"
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isTyping}
           />
-          <Button type="submit" disabled={!inputValue.trim() || isTyping} className="shrink-0">
+          <button 
+            type="submit" 
+            disabled={!inputValue.trim() || isTyping}
+            className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Send className="h-4 w-4" />
-          </Button>
+          </button>
         </form>
         <p className="text-xs text-gray-400 text-center mt-2">Powered by AI</p>
       </div>

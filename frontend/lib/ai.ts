@@ -396,7 +396,7 @@ export class AIAssistant {
     keywords: string[]
   }> {
     try {
-      const prompt = `
+      const prompt: string = `
         Generate SEO-optimized meta tags for a ${pageType} page.
         
         Content: ${content.substring(0, 500)}...
@@ -432,8 +432,8 @@ export class AIAssistant {
         temperature: 0.5
       })
 
-      const content = response.choices[0].message.content
-      return JSON.parse(content || '{}')
+      const responseContent = response.choices[0].message.content
+      return JSON.parse(responseContent || '{}')
     } catch (error) {
       console.error('AI Meta Tag Generation Error:', error)
       return {

@@ -13,7 +13,7 @@ export default function AdminPage() {
   const [isAddingProduct, setIsAddingProduct] = useState(false)
 
   // Check if user is admin (you would implement this logic)
-  const isAdmin = user && user.attributes?.email === 'admin@usarakhi.com'
+  const isAdmin = user && user.signInDetails?.loginId === 'admin@usarakhi.com'
 
   useEffect(() => {
     if (!user) {
