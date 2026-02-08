@@ -114,6 +114,9 @@ jobs:
           --parameters \
             ParameterKey=Stage,ParameterValue=${CLEAN_BRANCH_NAME} \
             ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+            ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
+            ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
+            ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
           --capabilities CAPABILITY_IAM \
           --region ${{ env.AWS_REGION }} \
           || aws cloudformation update-stack \
@@ -122,6 +125,9 @@ jobs:
           --parameters \
             ParameterKey=Stage,ParameterValue=${CLEAN_BRANCH_NAME} \
             ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+            ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
+            ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
+            ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
           --capabilities CAPABILITY_IAM \
           --region ${{ env.AWS_REGION }}
 

@@ -16,6 +16,21 @@ Parameters:
     Type: String
     Description: ACM Certificate ARN for HTTPS (optional)
     Default: ''
+  
+  StripePublishableKey:
+    Type: String
+    Default: pk_test_dummy_key
+    Description: Stripe Publishable Key for frontend
+  
+  CognitoUserPoolId:
+    Type: String
+    Default: dummy-user-pool-id
+    Description: Cognito User Pool ID
+  
+  CognitoClientId:
+    Type: String
+    Default: dummy-client-id
+    Description: Cognito App Client ID
 
 Resources:
   # Lambda Function for Next.js Server
