@@ -1,0 +1,286 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS SAM template for Next.js frontend deployment using Lambda + API Gateway'
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    Description: Deployment stage (dev, staging, prod)
+  
+  FrontendDomain:
+    Type: String
+    Default: usarakhi.com
+    Description: Domain name for the frontend
+  
+  CertificateArn:
+    Type: String
+    Description: ACM Certificate ARN for HTTPS (optional)
+    Default: ''
+  
+  StripePublishableKey:
+    Type: String
+    Default: pk_test_dummy_key
+    Description: Stripe Publishable Key for frontend
+  
+  CognitoUserPoolId:
+    Type: String
+    Default: dummy-user-pool-id
+    Description: Cognito User Pool ID
+  
+  CognitoClientId:
+    Type: String
+    Default: dummy-client-id
+    Description: Cognito App Client ID
+
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
+
+Resources:
+  # ECR Repository for Docker Image
+  FrontendECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub 'usarakhi-frontend-${Stage}'
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+
+  # Lambda Function for Next.js Server (Container-based)
+  NextJsServerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'usarakhi-frontend-${Stage}'
+      PackageType: Image
+      CodeUri: frontend/
+      ImageConfig:
+        EntryPoint: ["aws-lambda-ric"]
+        Command: ["server.handler"]
+      MemorySize: 2048
+      Timeout: 30
+      Environment:
+        Variables:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_API_URL: !Sub 'https://${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/'
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: !Ref StripePublishableKey
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: !Ref CognitoClientId
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+            RestApiId: !Ref FrontendApiGateway
+        RootEvent:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+            RestApiId: !Ref FrontendApiGateway
+
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'usarakhi-frontend-lambda-role-${Stage}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CloudFrontInvalidation
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                Resource: '*'
+
+  # API Gateway REST API
+  FrontendApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub 'usarakhi-frontend-api-${Stage}'
+      StageName: !Ref Stage
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          title: !Sub 'usarakhi-frontend-api-${Stage}'
+        paths:
+          /{proxy+}:
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-integration:
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NextJsServerFunction.Arn}/invocations'
+                httpMethod: POST
+                type: aws_proxy
+              responses: {}
+              security: []
+          /:
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-integration:
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${NextJsServerFunction.Arn}/invocations'
+                httpMethod: POST
+                type: aws_proxy
+              responses: {}
+              security: []
+
+  # S3 Bucket for Static Assets
+  FrontendAssetsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 'usarakhi-frontend-assets-${Stage}'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  # S3 Bucket Policy for Public Read Access
+  FrontendAssetsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendAssetsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt FrontendCloudFrontOAI.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Sub '${FrontendAssetsBucket.Arn}/*'
+
+  # CloudFront Distribution for Frontend
+  FrontendCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: NextJsServerOrigin
+            DomainName: !Sub '${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+          - Id: StaticAssetsOrigin
+            DomainName: !GetAtt FrontendAssetsBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${FrontendCloudFrontOAI}'
+        DefaultCacheBehavior:
+          TargetOriginId: NextJsServerOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          Compress: true
+          AllowedMethods: [ GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE ]
+          CachedMethods: [ GET, HEAD, OPTIONS ]
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: all
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !Ref CloudFrontFunction
+        CacheBehaviors:
+          - PathPattern: '_next/static/*'
+            TargetOriginId: StaticAssetsOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [ GET, HEAD, OPTIONS ]
+            CachedMethods: [ GET, HEAD ]
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none  # Managed-CachingOptimized
+          - PathPattern: 'static/*'
+            TargetOriginId: StaticAssetsOrigin
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods: [ GET, HEAD, OPTIONS ]
+            CachedMethods: [ GET, HEAD ]
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
+        PriceClass: PriceClass_100
+        HttpVersion: http2
+        IPV6Enabled: true
+        ViewerCertificate:
+          AcmCertificateArn: arn:aws:acm:us-east-1:985539754737:certificate/cc838ce9-1a23-4eae-b024-173cd6278d6c
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+
+  # CloudFront Origin Access Identity
+  FrontendCloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: OAI for usarakhi frontend assets
+
+  # CloudFront Function for URL Rewriting
+  CloudFrontFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub 'usarakhi-frontend-rewrite-${Stage}'
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrite URLs for Next.js routing
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+
+          // Skip API routes
+          if (uri.startsWith('/api/')) {
+            return request;
+          }
+
+          // Skip static assets
+          if (uri.includes('.') && uri.indexOf('.') > uri.lastIndexOf('/')) {
+            return request;
+          }
+
+          // Rewrite to index.html for client-side routing
+          request.uri = '/index.html';
+          return request;
+        }
+
+# Outputs
+Outputs:
+  FrontendUrl:
+    Description: 'Frontend URL'
+    Value: !Sub 'https://${FrontendCloudFrontDistribution.DomainName}'
+  
+  ApiGatewayUrl:
+    Description: 'API Gateway URL for frontend'
+    Value: !Sub 'https://${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}'
+  
+  NextJsLambdaFunction:
+    Description: 'Next.js Lambda Function ARN'
+    Value: !GetAtt NextJsServerFunction.Arn
+  
+  FrontendAssetsBucket:
+    Description: 'S3 Bucket for static assets'
+    Value: !Ref FrontendAssetsBucket
+  
+  CloudFrontDistributionId:
+    Description: 'CloudFront Distribution ID'
+    Value: !Ref FrontendCloudFrontDistribution
+  
+  FrontendECRRepository:
+    Description: 'ECR Repository URL'
+    Value: !GetAtt FrontendECRRepository.RepositoryUri

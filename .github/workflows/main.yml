@@ -102,100 +102,67 @@
           npm install --no-audit --no-fund
           npm run build
 
-      - name: Create ECR repository
-        id: create-ecr
-        run: |
-          aws ecr create-repository \
-            --repository-name usarakhi-frontend-dev \
-            --region us-east-1 \
-            || echo "Repository already exists"
-          
-          # Get the ECR registry URL
-          ECR_REGISTRY=$(aws ecr describe-repositories \
-            --repository-names usarakhi-frontend-dev \
-            --query 'repositories[0].repositoryUri' \
-            --output text \
-            --region us-east-1)
-          
-          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_OUTPUT
-          echo "ECR_REPOSITORY=usarakhi-frontend-dev" >> $GITHUB_OUTPUT
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: private
-
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.create-ecr.outputs.ECR_REGISTRY }}
-          ECR_REPOSITORY: ${{ steps.create-ecr.outputs.ECR_REPOSITORY }}
-          IMAGE_TAG: latest
-        run: |
-          docker build -t $ECR_REGISTRY:$IMAGE_TAG frontend/
-          docker push $ECR_REGISTRY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Deploy frontend infrastructure to AWS
+      - name: Deploy frontend infrastructure using SAM
+        id: deploy-frontend
         run: |
           STAGE_NAME=dev
           
-          aws cloudformation create-stack \
+          echo "🚀 Building and deploying frontend using SAM..."
+          
+          # Build the SAM application (this will build the Docker image)
+          cd infrastructure
+          sam build --template frontend-sam-template.yaml
+          
+          echo "⏳ Deploying SAM application..."
+          
+          # Deploy the SAM application
+          sam deploy \
             --stack-name usa-rakhi-frontend \
-            --template-body file://infrastructure/frontend-template.yaml \
-            --parameters \
-              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
-              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
-              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
-              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
-              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
+            --template-file .aws-sam/build/template.yaml \
+            --parameter-overrides \
+              Stage=$STAGE_NAME \
+              FrontendDomain=usarakhi.com \
+              StripePublishableKey=pk_test_dummy_key \
+              CognitoUserPoolId=dummy-user-pool-id \
+              CognitoClientId=dummy-client-id \
             --capabilities CAPABILITY_NAMED_IAM \
-            --region ${{ env.AWS_REGION }} \
-            || aws cloudformation update-stack \
-            --stack-name usa-rakhi-frontend \
-            --template-body file://infrastructure/frontend-template.yaml \
-            --parameters \
-              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
-              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
-              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
-              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
-              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Wait for frontend stack deployment
-        run: |
-          aws cloudformation wait stack-create-complete \
-            --stack-name usa-rakhi-frontend \
-            --region ${{ env.AWS_REGION }} \
-            || aws cloudformation wait stack-update-complete \
-            --stack-name usa-rakhi-frontend \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Get frontend stack outputs
-        id: frontend-outputs
-        run: |
+            --resolve-s3 \
+            --no-fail-on-empty-changeset
+          
+          echo "✅ SAM deployment completed successfully!"
+          
+          # Get stack outputs
           STACK_OUTPUTS=$(aws cloudformation describe-stacks \
             --stack-name usa-rakhi-frontend \
             --region ${{ env.AWS_REGION }} \
             --query 'Stacks[0].Outputs' --output json)
-
-          echo "FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')" >> $GITHUB_OUTPUT
-          echo "LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')" >> $GITHUB_OUTPUT
-          echo "CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')" >> $GITHUB_OUTPUT
+          
+          FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')
+          LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')
+          CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')
+          ECR_REPOSITORY_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendECRRepository\") | .OutputValue')
+          
+          echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "LAMBDA_FUNCTION_ARN=$LAMBDA_FUNCTION_ARN" >> $GITHUB_OUTPUT
+          echo "CLOUDFRONT_ID=$CLOUDFRONT_ID" >> $GITHUB_OUTPUT
+          echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
+          
+          echo "🌐 Frontend URL: $FRONTEND_URL"
+          echo "⚡ Lambda Function ARN: $LAMBDA_FUNCTION_ARN"
+          echo "☁️ CloudFront Distribution ID: $CLOUDFRONT_ID"
+          echo "📦 ECR Repository URL: $ECR_REPOSITORY_URL"
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ steps.frontend-outputs.outputs.CLOUDFRONT_ID }} \
+            --distribution-id ${{ steps.deploy-frontend.outputs.CLOUDFRONT_ID }} \
             --paths "/*" \
             --region ${{ env.AWS_REGION }}
 
       - name: Notify frontend deployment
         run: |
           echo "✅ Frontend deployed successfully!"
-          echo "🌐 Frontend URL: ${{ steps.frontend-outputs.outputs.FRONTEND_URL }}"
+          echo "🌐 Frontend URL: ${{ steps.deploy-frontend.outputs.FRONTEND_URL }}"
 
       - name: Notify deployment
         run: |
