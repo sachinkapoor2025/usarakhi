@@ -102,24 +102,142 @@ jobs:
         npm install --no-audit --no-fund
         npm run build
 
-    # Note: For Next.js 14 App Router, we don't use static export
-    # The built application should be deployed to a server (e.g., AWS Lambda, ECS, etc.)
-    # or use Vercel/Netlify for server-side rendering
-    
-    # For now, we'll skip the S3 deployment since this is a server-side rendered app
-    # that requires Node.js to run, not static files
-    
-    # If you want to deploy to S3/CloudFront, you would need to:
-    # 1. Add "output: 'export'" to next.config.js
-    # 2. Run "npm run export" after build
-    # 3. Sync the "out/" directory to S3
-    
-    # For server-side rendering, consider:
-    # - AWS Lambda with API Gateway
-    # - AWS ECS/Fargate
-    # - AWS Elastic Beanstalk
-    # - Vercel
-    # - Netlify (with SSR functions)
+    - name: Deploy frontend infrastructure to AWS
+      run: |
+        # Deploy frontend CloudFormation stack
+        aws cloudformation create-stack \
+          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --template-body file://infrastructure/frontend-template.yaml \
+          --parameters \
+            ParameterKey=Stage,ParameterValue=${{ github.ref_name }} \
+            ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+          --capabilities CAPABILITY_IAM \
+          --region ${{ env.AWS_REGION }} \
+          || aws cloudformation update-stack \
+          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --template-body file://infrastructure/frontend-template.yaml \
+          --parameters \
+            ParameterKey=Stage,ParameterValue=${{ github.ref_name }} \
+            ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+          --capabilities CAPABILITY_IAM \
+          --region ${{ env.AWS_REGION }} \
+          --no-fail-on-empty-changeset
+
+    - name: Wait for frontend stack deployment
+      run: |
+        aws cloudformation wait stack-create-complete \
+          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --region ${{ env.AWS_REGION }} \
+          || aws cloudformation wait stack-update-complete \
+          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Get frontend stack outputs
+      id: frontend-outputs
+      run: |
+        STACK_OUTPUTS=$(aws cloudformation describe-stacks \
+          --stack-name usarakhi-frontend-${{ github.ref_name }} \
+          --region ${{ env.AWS_REGION }} \
+          --query 'Stacks[0].Outputs' --output json)
+        
+        echo "FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')" >> $GITHUB_OUTPUT
+        echo "LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')" >> $GITHUB_OUTPUT
+        echo "DEPLOYMENT_BUCKET=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendAssetsBucket\") | .OutputValue')" >> $GITHUB_OUTPUT
+        echo "CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')" >> $GITHUB_OUTPUT
+
+    - name: Create deployment package
+      run: |
+        # Create temporary directory for deployment
+        TEMP_DIR="temp-frontend-deployment"
+        rm -rf $TEMP_DIR
+        mkdir -p $TEMP_DIR
+        
+        # Copy frontend build files
+        cp -r frontend/.next $TEMP_DIR/
+        cp -r frontend/public $TEMP_DIR/ 2>/dev/null || true
+        cp frontend/package.json $TEMP_DIR/
+        cp frontend/package-lock.json $TEMP_DIR/ 2>/dev/null || true
+        
+        # Create server.js for Lambda
+        cat > $TEMP_DIR/server.js << 'EOF'
+        const { createServer, proxy } = require('aws-serverless-express');
+        const { parse } = require('url');
+        const next = require('next');
+
+        const dev = process.env.NODE_ENV !== 'production';
+        const app = next({ dev, conf: { distDir: '.next' } });
+        const handle = app.getRequestHandler();
+
+        let server;
+
+        async function getServer() {
+          if (!server) {
+            await app.prepare();
+            server = createServer((req, res) => {
+              const parsedUrl = parse(req.url, true);
+              handle(req, res, parsedUrl);
+            });
+          }
+          return server;
+        }
+
+        module.exports.handler = async (event, context) => {
+          const server = await getServer();
+          return proxy(server, event, context);
+        };
+        EOF
+
+        # Create package.json for Lambda
+        cat > $TEMP_DIR/package.json << 'EOF'
+        {
+          "name": "usarakhi-frontend-lambda",
+          "version": "1.0.0",
+          "dependencies": {
+            "next": "^14.0.0",
+            "aws-serverless-express": "^3.3.9",
+            "aws-lambda": "^1.0.6"
+          }
+        }
+        EOF
+
+        # Install Lambda dependencies
+        cd $TEMP_DIR
+        npm install --production --no-audit --no-fund
+        
+        # Create deployment zip
+        zip -r ../frontend-server.zip . -x "node_modules/aws-sdk/*"
+        
+        cd ..
+        rm -rf $TEMP_DIR
+
+    - name: Update Lambda function code
+      run: |
+        LAMBDA_FUNCTION_NAME=$(echo "${{ steps.frontend-outputs.outputs.LAMBDA_FUNCTION_ARN }}" | cut -d: -f6)
+        
+        aws lambda update-function-code \
+          --function-name $LAMBDA_FUNCTION_NAME \
+          --s3-bucket ${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }} \
+          --s3-key frontend-server.zip \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Upload static assets to S3
+      run: |
+        if [ -d "frontend/public" ]; then
+          aws s3 sync frontend/public/ s3://${{ steps.frontend-outputs.outputs.DEPLOYMENT_BUCKET }}/ --delete --region ${{ env.AWS_REGION }}
+        fi
+
+    - name: Invalidate CloudFront cache
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ steps.frontend-outputs.outputs.CLOUDFRONT_ID }} \
+          --paths "/*" \
+          --region ${{ env.AWS_REGION }}
+
+    - name: Notify frontend deployment
+      run: |
+        echo "✅ Frontend deployed successfully!"
+        echo "🌐 Frontend URL: ${{ steps.frontend-outputs.outputs.FRONTEND_URL }}"
+        echo "🔗 API Gateway URL: https://${{ github.ref_name }}.execute-api.${{ env.AWS_REGION }}.amazonaws.com/${{ github.ref_name }}"
 
     - name: Notify deployment
       run: |
