@@ -1,12 +1,8 @@
-# Use Node.js 20 base image
-FROM node:20-alpine
+# Use AWS Lambda Node.js 20 runtime image
+FROM public.ecr.aws/lambda/nodejs:20
 
 # Set working directory
-WORKDIR /app
-
-# Install build tools and AWS Lambda Runtime Interface Client
-RUN apk add --no-cache python3 make g++ cmake && \
-    npm install -g aws-lambda-ric
+WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy package files
 COPY package*.json ./
@@ -20,8 +16,5 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Expose the port (not required for Lambda but good practice)
-EXPOSE 3000
-
 # Set the entry point
-CMD ["aws-lambda-ric", "server.handler"]
+CMD ["server.handler"]
