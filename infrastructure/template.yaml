@@ -751,6 +751,3 @@ Outputs:
     Description: Cognito User Pool Client ID
     Value: !Ref UserPoolClient
   
-  UserPoolDomain:
-    Description: Cognito User Pool Domain
-    Value: !GetAtt UserPoolDomain.Domain
