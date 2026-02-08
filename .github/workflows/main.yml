@@ -86,7 +86,7 @@
       #     sam deploy \
       #       --stack-name usa-rakhi-dev-1 \
       #       --parameter-overrides \
-      #         Stage=$STAGE_NAME \
+      #         Stage=$STAGE_NAME \ 
       #         StripeSecretKey=dummy-stripe-key \
       #         CognitoUserPoolId=dummy-user-pool-id \
       #         CognitoClientId=dummy-client-id \
