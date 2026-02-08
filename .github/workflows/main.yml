@@ -208,6 +208,10 @@
         run: |
           aws s3 mb s3://usarakhi-frontend-deployment-dev --region ${{ env.AWS_REGION }} || true
 
+      - name: Upload Next.js Layer
+        run: |
+          aws s3 cp nextjs-layer.zip s3://usarakhi-frontend-deployment-dev/nextjs-layer.zip --region ${{ env.AWS_REGION }}
+
       - name: Upload deployment package
         run: |
           aws s3 cp frontend-server.zip s3://usarakhi-frontend-deployment-dev/nextjs-server.zip --region ${{ env.AWS_REGION }}
