@@ -102,6 +102,40 @@
           npm install --no-audit --no-fund
           npm run build
 
+      - name: Create Next.js Layer
+        run: |
+          # Create temporary directory for Next.js layer
+          LAYER_DIR="temp-nextjs-layer"
+          rm -rf $LAYER_DIR
+          mkdir -p $LAYER_DIR/nodejs
+          
+          # Create package.json for Next.js layer
+          cat > $LAYER_DIR/nodejs/package.json << 'EOF'
+          {
+            "name": "usarakhi-nextjs-layer",
+            "version": "1.0.0",
+            "dependencies": {
+              "next": "^14.0.0"
+            }
+          }
+          EOF
+
+          # Install Next.js in the layer directory
+          cd $LAYER_DIR/nodejs
+          npm install --production --no-audit --no-fund --no-optional
+          
+          # Remove unnecessary files to reduce layer size
+          find node_modules -name "*.test.js" -delete
+          find node_modules -name "*.spec.js" -delete
+          find node_modules -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
+          find node_modules -name "__tests__" -type d -exec rm -rf {} + 2>/dev/null || true
+          
+          # Create layer zip with maximum compression
+          zip -r -9 ../../nextjs-layer.zip . -x "node_modules/aws-sdk/*"
+          
+          cd ../..
+          rm -rf $LAYER_DIR
+
       - name: Create deployment package
         run: |
           # Create temporary directory for deployment
@@ -112,15 +146,14 @@
           # Copy only essential frontend build files (exclude node_modules)
           cp -r frontend/.next $TEMP_DIR/
           cp -r frontend/public $TEMP_DIR/ 2>/dev/null || true
-          cp frontend/package.json $TEMP_DIR/
-          cp frontend/package-lock.json $TEMP_DIR/ 2>/dev/null || true
           
-          # Create server.js for Lambda
+          # Create server.js for Lambda (minimal version)
           cat > $TEMP_DIR/server.js << 'EOF'
           const { createServer, proxy } = require('aws-serverless-express');
           const { parse } = require('url');
-          const next = require('next');
 
+          // Minimal Next.js server setup
+          const next = require('next');
           const dev = process.env.NODE_ENV !== 'production';
           const app = next({ dev, conf: { distDir: '.next' } });
           const handle = app.getRequestHandler();
@@ -144,30 +177,28 @@
           };
           EOF
 
-          # Create minimal package.json for Lambda
+          # Create minimal package.json for Lambda (only aws-serverless-express)
           cat > $TEMP_DIR/package.json << 'EOF'
           {
             "name": "usarakhi-frontend-lambda",
             "version": "1.0.0",
             "dependencies": {
-              "next": "^14.0.0",
               "aws-serverless-express": "^3.3.9"
             }
           }
           EOF
 
-          # Install only production dependencies with minimal size
+          # Install only aws-serverless-express (much smaller)
           cd $TEMP_DIR
           npm install --production --no-audit --no-fund --no-optional
           
           # Remove unnecessary files to reduce package size
-          rm -rf node_modules/aws-sdk
           find node_modules -name "*.test.js" -delete
           find node_modules -name "*.spec.js" -delete
           find node_modules -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
           find node_modules -name "__tests__" -type d -exec rm -rf {} + 2>/dev/null || true
           
-          # Create deployment zip with compression
+          # Create deployment zip with maximum compression
           zip -r -9 ../frontend-server.zip . -x "node_modules/aws-sdk/*"
           
           cd ..

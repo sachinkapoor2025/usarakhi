@@ -36,6 +36,18 @@
     HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
 
   Resources:
+    # Lambda Layer for Next.js
+    NextJsLayer:
+      Type: AWS::Lambda::LayerVersion
+      Properties:
+        LayerName: !Sub 'usarakhi-nextjs-layer-${Stage}'
+        Description: 'Next.js runtime layer'
+        Content:
+          S3Bucket: !Sub 'usarakhi-frontend-deployment-${Stage}'
+          S3Key: 'nextjs-layer.zip'
+        CompatibleRuntimes:
+          - nodejs20.x
+
     # Lambda Function for Next.js Server
     NextJsServerFunction:
       Type: AWS::Lambda::Function
@@ -48,6 +60,8 @@
           S3Key: 'nextjs-server.zip'
         MemorySize: 1024
         Timeout: 30
+        Layers:
+          - !Ref NextJsLayer
         Environment:
           Variables:
             NODE_ENV: production
