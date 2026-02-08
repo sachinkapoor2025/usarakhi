@@ -102,56 +102,6 @@
       #     npm install --no-audit --no-fund
       #     npm run build
 
-      - name: Deploy frontend infrastructure to AWS
-        run: |
-          STAGE_NAME=dev
-          
-          aws cloudformation create-stack \
-            --stack-name usa-rakhi-frontend \
-            --template-body file://infrastructure/frontend-template.yaml \
-            --parameters \
-              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
-              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
-              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
-              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
-              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --region ${{ env.AWS_REGION }} \
-            || aws cloudformation update-stack \
-            --stack-name usa-rakhi-frontend \
-            --template-body file://infrastructure/frontend-template.yaml \
-            --parameters \
-              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
-              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
-              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
-              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
-              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Wait for frontend stack deployment
-        run: |
-          aws cloudformation wait stack-create-complete \
-            --stack-name usa-rakhi-frontend \
-            --region ${{ env.AWS_REGION }} \
-            || aws cloudformation wait stack-update-complete \
-            --stack-name usa-rakhi-frontend \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Get frontend stack outputs
-        id: frontend-outputs
-        run: |
-          STACK_OUTPUTS=$(aws cloudformation describe-stacks \
-            --stack-name usa-rakhi-frontend \
-            --region ${{ env.AWS_REGION }} \
-            --query 'Stacks[0].Outputs' --output json)
-
-          echo "FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')" >> $GITHUB_OUTPUT
-          echo "LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')" >> $GITHUB_OUTPUT
-          echo "DEPLOYMENT_BUCKET=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendAssetsBucket\") | .OutputValue')" >> $GITHUB_OUTPUT
-          echo "CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')" >> $GITHUB_OUTPUT
-
-
       - name: Create deployment package
         run: |
           # Create temporary directory for deployment
@@ -216,6 +166,63 @@
           
           cd ..
           rm -rf $TEMP_DIR
+
+      - name: Create deployment bucket
+        run: |
+          aws s3 mb s3://usarakhi-frontend-deployment-dev --region ${{ env.AWS_REGION }} || true
+
+      - name: Upload deployment package
+        run: |
+          aws s3 cp frontend-server.zip s3://usarakhi-frontend-deployment-dev/nextjs-server.zip --region ${{ env.AWS_REGION }}
+
+      - name: Deploy frontend infrastructure to AWS
+        run: |
+          STAGE_NAME=dev
+          
+          aws cloudformation create-stack \
+            --stack-name usa-rakhi-frontend \
+            --template-body file://infrastructure/frontend-template.yaml \
+            --parameters \
+              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
+              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
+              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
+              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.AWS_REGION }} \
+            || aws cloudformation update-stack \
+            --stack-name usa-rakhi-frontend \
+            --template-body file://infrastructure/frontend-template.yaml \
+            --parameters \
+              ParameterKey=Stage,ParameterValue=$STAGE_NAME \
+              ParameterKey=FrontendDomain,ParameterValue=usarakhi.com \
+              ParameterKey=StripePublishableKey,ParameterValue=pk_test_dummy_key \
+              ParameterKey=CognitoUserPoolId,ParameterValue=dummy-user-pool-id \
+              ParameterKey=CognitoClientId,ParameterValue=dummy-client-id \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for frontend stack deployment
+        run: |
+          aws cloudformation wait stack-create-complete \
+            --stack-name usa-rakhi-frontend \
+            --region ${{ env.AWS_REGION }} \
+            || aws cloudformation wait stack-update-complete \
+            --stack-name usa-rakhi-frontend \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Get frontend stack outputs
+        id: frontend-outputs
+        run: |
+          STACK_OUTPUTS=$(aws cloudformation describe-stacks \
+            --stack-name usa-rakhi-frontend \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' --output json)
+
+          echo "FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "DEPLOYMENT_BUCKET=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendAssetsBucket\") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')" >> $GITHUB_OUTPUT
       - name: Upload Lambda package to S3
         run: |
           aws s3 cp frontend-server.zip \
