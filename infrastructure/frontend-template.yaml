@@ -213,11 +213,13 @@ Resources:
           Compress: true
           AllowedMethods: [ GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE ]
           CachedMethods: [ GET, HEAD, OPTIONS ]
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
-          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3  # AllViewer
+          ForwardedValues:
+            QueryString: true
+            Cookies:
+              Forward: all
           FunctionAssociations:
             - EventType: viewer-request
-              FunctionARN: !GetAtt CloudFrontFunction.FunctionMetadata.FunctionARN
+              FunctionARN: !Ref CloudFrontFunction
         CacheBehaviors:
           - PathPattern: '_next/static/*'
             TargetOriginId: StaticAssetsOrigin
@@ -225,14 +227,20 @@ Resources:
             Compress: true
             AllowedMethods: [ GET, HEAD, OPTIONS ]
             CachedMethods: [ GET, HEAD ]
-            CachePolicyId: 658327ea-f89d-4fab-84b5-ea7d756506d5  # Managed-CachingOptimized
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none  # Managed-CachingOptimized
           - PathPattern: 'static/*'
             TargetOriginId: StaticAssetsOrigin
             ViewerProtocolPolicy: redirect-to-https
             Compress: true
             AllowedMethods: [ GET, HEAD, OPTIONS ]
             CachedMethods: [ GET, HEAD ]
-            CachePolicyId: 658327ea-f89d-4fab-84b5-ea7d756506d5  # Managed-CachingOptimized
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
         PriceClass: PriceClass_100
         HttpVersion: http2
         IPV6Enabled: true
