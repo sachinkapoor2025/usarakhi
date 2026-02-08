@@ -102,35 +102,24 @@ jobs:
         npm install --no-audit --no-fund
         npm run build
 
-    - name: Configure AWS credentials for S3
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Create S3 bucket for frontend (if not exists)
-      run: |
-        BUCKET_NAME="usarakhi-frontend-${{ github.ref_name }}"
-        aws s3 mb s3://$BUCKET_NAME --region ${{ env.AWS_REGION }} || true
-
-    - name: Deploy frontend to S3
-      run: |
-        BUCKET_NAME="usarakhi-frontend-${{ github.ref_name }}"
-        aws s3 sync frontend/out/ s3://$BUCKET_NAME/ --delete
-
-    - name: Invalidate CloudFront cache
-      run: |
-        # Get CloudFront distribution ID
-        DISTRIBUTION_ID=$(aws cloudfront list-distributions \
-          --query "DistributionList.Items[?Origins.Items[0].DomainName=='usarakhi-frontend-${{ github.ref_name }}.s3.amazonaws.com'].Id" \
-          --output text)
-        
-        if [ ! -z "$DISTRIBUTION_ID" ]; then
-          aws cloudfront create-invalidation \
-            --distribution-id $DISTRIBUTION_ID \
-            --paths "/*"
-        fi
+    # Note: For Next.js 14 App Router, we don't use static export
+    # The built application should be deployed to a server (e.g., AWS Lambda, ECS, etc.)
+    # or use Vercel/Netlify for server-side rendering
+    
+    # For now, we'll skip the S3 deployment since this is a server-side rendered app
+    # that requires Node.js to run, not static files
+    
+    # If you want to deploy to S3/CloudFront, you would need to:
+    # 1. Add "output: 'export'" to next.config.js
+    # 2. Run "npm run export" after build
+    # 3. Sync the "out/" directory to S3
+    
+    # For server-side rendering, consider:
+    # - AWS Lambda with API Gateway
+    # - AWS ECS/Fargate
+    # - AWS Elastic Beanstalk
+    # - Vercel
+    # - Netlify (with SSR functions)
 
     - name: Notify deployment
       run: |
