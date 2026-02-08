@@ -52,7 +52,7 @@
         FunctionName: !Sub 'usarakhi-frontend-${Stage}'
         PackageType: Image
         Code:
-          ImageUri: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/usarakhi-frontend-dev:latest'
+          ImageUri: !Sub '${FrontendECRRepository.RepositoryUri}:latest'
         MemorySize: 2048
         Timeout: 30
         Environment:
@@ -64,6 +64,10 @@
             NEXT_PUBLIC_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
             NEXT_PUBLIC_COGNITO_CLIENT_ID: !Ref CognitoClientId
         Role: !GetAtt LambdaExecutionRole.Arn
+      Metadata:
+        DockerContext: ./frontend
+        Dockerfile: Dockerfile
+        DockerTag: latest
 
     # Lambda Execution Role
     LambdaExecutionRole:

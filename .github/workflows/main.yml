@@ -54,7 +54,7 @@
     #       cd backend
     #       npm run lint
 
-    build-and-deploy:
+    deploy-frontend:
       runs-on: ubuntu-latest
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
       
@@ -69,33 +69,6 @@
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup AWS SAM
-        uses: aws-actions/setup-sam@v2
-
-      - name: Build backend
-        run: |
-          cd backend
-          npm install --no-audit --no-fund
-          npm run build
-
-      # - name: Deploy backend infrastructure
-      #   run: |
-      #     cd infrastructure
-      #     sam build --template template.yaml
-      #     STAGE_NAME=$(echo ${{ github.ref_name }} | tr '/' '-')
-      #     sam deploy \
-      #       --stack-name usa-rakhi-dev-1 \
-      #       --parameter-overrides \
-      #         Stage=$STAGE_NAME \ 
-      #         StripeSecretKey=dummy-stripe-key \
-      #         CognitoUserPoolId=dummy-user-pool-id \
-      #         CognitoClientId=dummy-client-id \
-      #         FrontendUrl=https://www.usarakhi.com \
-      #         OpenAIAPIKey=sk-sample-openai-key-for-testing \
-      #       --capabilities CAPABILITY_IAM \
-      #       --resolve-s3 \
-      #       --no-fail-on-empty-changeset
-
       - name: Build frontend
         run: |
           cd frontend
@@ -107,9 +80,9 @@
         run: |
           STAGE_NAME=dev
           
-          echo "🚀 Deploying frontend infrastructure..."
+          echo "🚀 Deploying frontend infrastructure with automatic Docker image creation..."
           
-          # Deploy the stack (this will create the ECR repository)
+          # Deploy the stack (Lambda will automatically build and push Docker image)
           aws cloudformation create-stack \
             --stack-name usa-rakhi-frontend \
             --template-body file://infrastructure/frontend-template.yaml \
@@ -145,7 +118,7 @@
           
           echo "✅ Stack deployment completed successfully!"
           
-          # Get stack outputs (including ECR repository URL)
+          # Get stack outputs
           STACK_OUTPUTS=$(aws cloudformation describe-stacks \
             --stack-name usa-rakhi-frontend \
             --region ${{ env.AWS_REGION }} \
@@ -154,36 +127,14 @@
           FRONTEND_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendUrl\") | .OutputValue')
           LAMBDA_FUNCTION_ARN=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"NextJsLambdaFunction\") | .OutputValue')
           CLOUDFRONT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"CloudFrontDistributionId\") | .OutputValue')
-          ECR_REPOSITORY_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey==\"FrontendECRRepository\") | .OutputValue')
           
           echo "FRONTEND_URL=$FRONTEND_URL" >> $GITHUB_OUTPUT
           echo "LAMBDA_FUNCTION_ARN=$LAMBDA_FUNCTION_ARN" >> $GITHUB_OUTPUT
           echo "CLOUDFRONT_ID=$CLOUDFRONT_ID" >> $GITHUB_OUTPUT
-          echo "ECR_REPOSITORY_URL=$ECR_REPOSITORY_URL" >> $GITHUB_OUTPUT
           
           echo "🌐 Frontend URL: $FRONTEND_URL"
           echo "⚡ Lambda Function ARN: $LAMBDA_FUNCTION_ARN"
           echo "☁️ CloudFront Distribution ID: $CLOUDFRONT_ID"
-          echo "📦 ECR Repository URL: $ECR_REPOSITORY_URL"
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-        with:
-          registry-type: private
-
-      - name: Build, tag, and push image to Amazon ECR
-        env:
-          ECR_REPOSITORY_URL: ${{ steps.deploy-frontend.outputs.ECR_REPOSITORY_URL }}
-          IMAGE_TAG: latest
-        run: |
-          echo "🏗️ Building Docker image..."
-          docker build -t $ECR_REPOSITORY_URL:$IMAGE_TAG frontend/
-          
-          echo "📤 Pushing image to ECR..."
-          docker push $ECR_REPOSITORY_URL:$IMAGE_TAG
-          
-          echo "✅ Image pushed successfully to $ECR_REPOSITORY_URL:$IMAGE_TAG"
 
       - name: Invalidate CloudFront cache
         run: |
@@ -200,17 +151,6 @@
       - name: Notify deployment
         run: |
           echo "✅ Deployment finished successfully"
-
-    deploy-staging:
-      runs-on: ubuntu-latest
-      if: github.ref == 'refs/heads/develop' || startsWith(github.ref, 'refs/heads/feature/')
-      
-      steps:
-      - name: Notify staging deployment
-        run: |
-          echo "🚀 Deploying to staging environment..."
-          echo "Branch: ${{ github.ref }}"
-          echo "Commit: ${{ github.sha }}"
 
     deploy-feature:
       runs-on: ubuntu-latest
