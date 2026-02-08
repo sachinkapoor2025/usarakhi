@@ -32,6 +32,9 @@ Parameters:
     Default: dummy-client-id
     Description: Cognito App Client ID
 
+Conditions:
+  HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
+
 Resources:
   # Lambda Function for Next.js Server
   NextJsServerFunction:
@@ -49,7 +52,7 @@ Resources:
         Variables:
           NODE_ENV: production
           NEXT_TELEMETRY_DISABLED: '1'
-          NEXT_PUBLIC_API_URL: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/'
+          NEXT_PUBLIC_API_URL: !Sub 'https://${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/'
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: !Ref StripePublishableKey
           NEXT_PUBLIC_COGNITO_USER_POOL_ID: !Ref CognitoUserPoolId
           NEXT_PUBLIC_COGNITO_CLIENT_ID: !Ref CognitoClientId
@@ -180,18 +183,17 @@ Resources:
       PolicyDocument:
         Statement:
           - Effect: Allow
-            Principal: '*'
-            Action: 's3:GetObject'
-            Resource: !Sub '${FrontendAssetsBucket}/*'
-            Condition:
-              StringEquals:
-                'aws:PrincipalOrgID': !Ref AWS::AccountId
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: !Sub '${FrontendAssetsBucket.Arn}/*'
 
   # CloudFront Distribution for Frontend
   FrontendCloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        Aliases:
+          - !Ref FrontendDomain
         Origins:
           - Id: NextJsServerOrigin
             DomainName: !Sub '${FrontendApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
@@ -209,7 +211,7 @@ Resources:
           TargetOriginId: NextJsServerOrigin
           ViewerProtocolPolicy: redirect-to-https
           CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
-          OriginRequestPolicyId: 88a5eaf4-2fd6-411v-a01e-9739124c5cc4  # AllViewer
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf  # AllViewer
           FunctionAssociations:
             - EventType: viewer-request
               FunctionARN: !GetAtt CloudFrontFunction.Arn
@@ -227,13 +229,14 @@ Resources:
         HttpVersion: http2
         IPV6Enabled: true
         PriceClass: PriceClass_100
-        ViewerCertificate:
-          AcmCertificateArn: !If
-            - HasCertificate
-            - !Ref CertificateArn
-            - !Ref AWS::NoValue
-          MinimumProtocolVersion: TLSv1.2_2021
-          SslSupportMethod: sni-only
+        ViewerCertificate: !If
+          - HasCertificate
+          - 
+            AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+            MinimumProtocolVersion: TLSv1.2_2021
+          - 
+            CloudFrontDefaultCertificate: true
 
   # CloudFront Origin Access Identity
   FrontendCloudFrontOAI:
@@ -312,6 +315,3 @@ Outputs:
   CloudFrontDistributionId:
     Description: 'CloudFront Distribution ID'
     Value: !Ref FrontendCloudFrontDistribution
-
-Conditions:
-HasCertificate: !Not [!Equals [!Ref CertificateArn, '']]
