@@ -237,13 +237,9 @@ Resources:
         HttpVersion: http2
         IPV6Enabled: true
         ViewerCertificate:
-          AcmCertificateArn: !If
-            - HasCertificate
-            - !Ref CertificateArn
-            - !Ref AWS::NoValue
-          MinimumProtocolVersion: TLSv1.2_2021
+          AcmCertificateArn: arn:aws:acm:us-east-1:985539754737:certificate/cc838ce9-1a23-4eae-b024-173cd6278d6c
           SslSupportMethod: sni-only
-
+          MinimumProtocolVersion: TLSv1.2_2021
   # CloudFront Origin Access Identity
   FrontendCloudFrontOAI:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
