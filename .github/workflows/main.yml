@@ -178,7 +178,7 @@ jobs:
   #   if: github.event_name == 'pull_request'
   #   
   #   steps:
-  #   - name: Checkout code
+  #   - name: Checkout code 
   #     uses: actions/checkout@v4
   #
   #   - name: Run Trivy vulnerability scanner
